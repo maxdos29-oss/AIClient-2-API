@@ -10,7 +10,7 @@ const KIRO_CONSTANTS = {
     REFRESH_IDC_URL: 'https://oidc.{{region}}.amazonaws.com/token',
     BASE_URL: 'https://codewhisperer.{{region}}.amazonaws.com/generateAssistantResponse',
     AMAZON_Q_URL: 'https://codewhisperer.{{region}}.amazonaws.com/SendMessageStreaming',
-    DEFAULT_MODEL_NAME: 'kiro-claude-sonnet-4-20250514',
+    DEFAULT_MODEL_NAME: 'claude-sonnet-4-5-20250929',
     AXIOS_TIMEOUT: 120000, // 2 minutes timeout
     USER_AGENT: 'KiroIDE',
     CONTENT_TYPE_JSON: 'application/json',
@@ -22,8 +22,10 @@ const KIRO_CONSTANTS = {
 
 const MODEL_MAPPING = {
     "claude-sonnet-4-20250514": "CLAUDE_SONNET_4_20250514_V1_0",
+    "claude-sonnet-4-5-20250929": "CLAUDE_SONNET_4_5_20250929_V1_0", // 新的 Claude 4.5 模型
     "claude-3-7-sonnet-20250219": "CLAUDE_3_7_SONNET_20250219_V1_0",
     "amazonq-claude-sonnet-4-20250514": "CLAUDE_SONNET_4_20250514_V1_0",
+    "amazonq-claude-sonnet-4-5-20250929": "CLAUDE_SONNET_4_5_20250929_V1_0", // Amazon Q 版本的 Claude 4.5
     "amazonq-claude-3-7-sonnet-20250219": "CLAUDE_3_7_SONNET_20250219_V1_0"
 };
 
@@ -487,7 +489,8 @@ async initializeAuth(forceRefresh = false) {
         }
 
         const codewhispererModel = MODEL_MAPPING[model] || MODEL_MAPPING[this.modelName];
-        
+        console.log(`[Kiro] Model mapping: "${model}" -> CodeWhisperer model: "${codewhispererModel}"`);
+
         let toolsContext = {};
         if (tools && Array.isArray(tools) && tools.length > 0) {
             toolsContext = {
@@ -836,6 +839,7 @@ async initializeAuth(forceRefresh = false) {
     async generateContent(model, requestBody) {
         if (!this.isInitialized) await this.initialize();
         const finalModel = MODEL_MAPPING[model] ? model : this.modelName;
+        console.log(`[Kiro] generateContent - Requested model: "${model}", Final model: "${finalModel}"`);
         const response = await this.callApi('', finalModel, requestBody);
 
         try {
@@ -862,6 +866,7 @@ async initializeAuth(forceRefresh = false) {
     async * generateContentStream(model, requestBody) {
         if (!this.isInitialized) await this.initialize();
         const finalModel = MODEL_MAPPING[model] ? model : this.modelName;
+        console.log(`[Kiro] generateContentStream - Requested model: "${model}", Final model: "${finalModel}"`);
 
         try {
             const response = await this.streamApi('', finalModel, requestBody);
