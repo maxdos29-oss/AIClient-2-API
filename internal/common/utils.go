@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -235,8 +236,10 @@ func ExtractTextFromMessageContent(content interface{}) string {
 
 // DecodeBase64 decodes a base64 string
 func DecodeBase64(encoded string) ([]byte, error) {
-	// This is a placeholder - you'd need to import encoding/base64
-	// and implement proper base64 decoding
-	return []byte(encoded), fmt.Errorf("base64 decoding not yet implemented")
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+	return decoded, nil
 }
 

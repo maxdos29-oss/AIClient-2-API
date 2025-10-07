@@ -3,7 +3,6 @@ package adapter
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,23 +11,17 @@ import (
 	"path/filepath"
 	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/option"
-	"google.golang.org/api/generativeai/v1beta"
-
 	"github.com/justlovemaki/AIClient-2-API/internal/common"
 )
 
 // GeminiAdapter implements the ApiServiceAdapter interface for Gemini API
 type GeminiAdapter struct {
-	config       *common.Config
-	client       *http.Client
-	oauthConfig  *oauth2.Config
-	token        *oauth2.Token
-	tokenExpiry  time.Time
-	apiEndpoint  string
-	initialized  bool
+	config      *common.Config
+	client      *http.Client
+	accessToken string
+	tokenExpiry time.Time
+	apiEndpoint string
+	initialized bool
 }
 
 // NewGeminiAdapter creates a new Gemini adapter
@@ -36,19 +29,21 @@ func NewGeminiAdapter(config *common.Config) (*GeminiAdapter, error) {
 	adapter := &GeminiAdapter{
 		config:      config,
 		apiEndpoint: "https://generativelanguage.googleapis.com/v1beta",
+		client:      &http.Client{Timeout: 30 * time.Second},
 		initialized: false,
 	}
 
-	// Initialize OAuth if credentials are provided
+	// Initialize authentication if credentials are provided
 	if err := adapter.initializeAuth(); err != nil {
-		return nil, fmt.Errorf("failed to initialize auth: %w", err)
+		// For now, continue even if auth fails - allows the adapter to be created
+		fmt.Printf("[Gemini] Warning: Failed to initialize auth: %v\n", err)
 	}
 
 	adapter.initialized = true
 	return adapter, nil
 }
 
-// initializeAuth initializes OAuth authentication
+// initializeAuth initializes authentication
 func (g *GeminiAdapter) initializeAuth() error {
 	var credsData []byte
 	var err error
@@ -82,51 +77,22 @@ func (g *GeminiAdapter) initializeAuth() error {
 		return fmt.Errorf("no Gemini OAuth credentials found")
 	}
 
-	// Parse credentials
+	// Parse credentials to extract access token
 	var creds map[string]interface{}
 	if err := json.Unmarshal(credsData, &creds); err != nil {
 		return fmt.Errorf("failed to parse credentials: %w", err)
 	}
 
-	// Create OAuth config
-	g.oauthConfig, err = google.ConfigFromJSON(credsData, generativeai.CloudPlatformScope)
-	if err != nil {
-		return fmt.Errorf("failed to create OAuth config: %w", err)
+	// Extract access token (simplified - actual OAuth flow is more complex)
+	if token, ok := creds["access_token"].(string); ok && token != "" {
+		g.accessToken = token
 	}
 
-	// Load or refresh token
-	if err := g.loadOrRefreshToken(); err != nil {
-		return fmt.Errorf("failed to load token: %w", err)
-	}
-
-	// Create HTTP client with OAuth token
-	ctx := context.Background()
-	g.client = g.oauthConfig.Client(ctx, g.token)
-
-	return nil
-}
-
-// loadOrRefreshToken loads an existing token or refreshes it if expired
-func (g *GeminiAdapter) loadOrRefreshToken() error {
-	// Try to load existing token
-	if g.token != nil && g.token.Valid() {
-		return nil
-	}
-
-	// For simplicity, we'll create a new token
-	// In production, you'd want to persist and reload tokens
-	ctx := context.Background()
-	
-	// This is a simplified version - actual implementation would need
-	// proper OAuth flow with token storage
-	if g.token != nil && g.token.RefreshToken != "" {
-		tokenSource := g.oauthConfig.TokenSource(ctx, g.token)
-		newToken, err := tokenSource.Token()
-		if err != nil {
-			return fmt.Errorf("failed to refresh token: %w", err)
+	// Extract expiry if available
+	if expiry, ok := creds["expiry"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, expiry); err == nil {
+			g.tokenExpiry = t
 		}
-		g.token = newToken
-		g.tokenExpiry = newToken.Expiry
 	}
 
 	return nil
@@ -262,8 +228,8 @@ func (g *GeminiAdapter) ListModels() (map[string]interface{}, error) {
 
 // RefreshToken refreshes the Gemini OAuth token if needed
 func (g *GeminiAdapter) RefreshToken() error {
-	if g.token != nil && time.Until(g.tokenExpiry) < 5*time.Minute {
-		return g.loadOrRefreshToken()
+	if !g.tokenExpiry.IsZero() && time.Until(g.tokenExpiry) < 5*time.Minute {
+		return g.initializeAuth()
 	}
 	return nil
 }
