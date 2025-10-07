@@ -5,6 +5,11 @@ run:
   timeout: 5m
   tests: true
   modules-download-mode: readonly
+  skip-files:
+    - "Dockerfile.*"
+    - "*.md"
+    - "*.sh"
+    - "*.txt"
 
 linters:
   enable:
