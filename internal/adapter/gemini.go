@@ -160,6 +160,9 @@ func (g *GeminiAdapter) GenerateContentStream(model string, requestBody map[stri
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	if g.accessToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", g.accessToken))
+	}
 
 	resp, err := g.client.Do(req)
 	if err != nil {

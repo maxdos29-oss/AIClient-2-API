@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/justlovemaki/AIClient-2-API/internal/adapter"
@@ -54,8 +57,39 @@ func main() {
 	// Start HTTP server
 	srv := server.NewServer(config, poolManager)
 	log.Printf("\n[Server] Starting Unified API Server on http://%s:%d\n", config.Host, config.ServerPort)
-	if err := srv.Start(); err != nil {
+	
+	// Setup graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start server in goroutine
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := srv.Start(); err != nil {
+			serverErr <- err
+		}
+	}()
+
+	// Wait for interrupt signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErr:
 		log.Fatalf("[Server] Failed to start server: %v", err)
+	case sig := <-sigChan:
+		log.Printf("\n[Server] Received signal %v, initiating graceful shutdown...", sig)
+		
+		// Create shutdown context with timeout
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
+
+		// Shutdown server
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("[Server] Error during shutdown: %v", err)
+		} else {
+			log.Println("[Server] Graceful shutdown completed")
+		}
 	}
 }
 
