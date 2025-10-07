@@ -5,11 +5,17 @@ run:
   timeout: 5m
   tests: true
   modules-download-mode: readonly
-  skip-files:
+
+issues:
+  exclude-files:
     - "Dockerfile.*"
     - "*.md"
     - "*.sh"
     - "*.txt"
+
+output:
+  formats:
+    - format: github-actions
 
 linters:
   enable:
