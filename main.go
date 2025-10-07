@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -56,10 +55,6 @@ func main() {
 	// Start HTTP server
 	srv := server.NewServer(config, poolManager)
 	log.Printf("\n[Server] Starting Unified API Server on http://%s:%d\n", config.Host, config.ServerPort)
-
-	// Setup graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Start server in goroutine
 	serverErr := make(chan error, 1)
