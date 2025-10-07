@@ -32,7 +32,7 @@ AIClient-2-API/
 │       └── server.go               # HTTP 服务器（完整实现）
 ├── config.json.example              # 示例配置
 ├── provider_pools.json              # 账号池配置（兼容原版）
-├── Dockerfile.go                    # Docker 构建文件
+├── Dockerfile.golang                    # Docker 构建文件
 ├── run-go.sh                        # 启动脚本
 ├── README-GO.md                     # Go 版本文档
 ├── BUILD.md                         # 构建指南
@@ -95,7 +95,7 @@ AIClient-2-API/
 
 #### ✅ 辅助工具
 - `run-go.sh`: 交互式启动脚本
-- `Dockerfile.go`: 优化的 Docker 构建
+- `Dockerfile.golang`: 优化的 Docker 构建
 - `.gitignore`: Go 项目配置
 - 示例配置文件
 

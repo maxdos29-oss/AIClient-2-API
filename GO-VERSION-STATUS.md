@@ -82,7 +82,7 @@
 ### 6. 部署支持 (100%)
 
 - [x] Docker 支持
-  - [x] Dockerfile (`Dockerfile.go`)
+  - [x] Dockerfile (`Dockerfile.golang`)
   - [x] 多阶段构建
   - [x] 健康检查
 - [x] 文档

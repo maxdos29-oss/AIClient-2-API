@@ -47,7 +47,7 @@ go build -o aiclient2api
 
 ```bash
 # 1. 构建镜像
-docker build -f Dockerfile.go -t aiclient2api:go .
+docker build -f Dockerfile.golang -t aiclient2api:go .
 
 # 2. 运行容器
 docker run -d \
@@ -220,7 +220,7 @@ AIClient-2-API/
 ├── go.sum                  # 依赖锁定文件
 ├── config.json             # 配置文件
 ├── provider_pools.json     # 账号池配置
-├── Dockerfile.go           # Docker 构建文件
+├── Dockerfile.golang           # Docker 构建文件
 ├── internal/
 │   ├── common/            # 通用工具和配置
 │   │   ├── config.go      # 配置管理

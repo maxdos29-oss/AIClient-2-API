@@ -39,7 +39,7 @@ AIClient-2-API/
 │
 ├── 🐳 Docker 文件
 │   ├── Dockerfile                  # Node.js 版本（原有）
-│   └── Dockerfile.go              # Go 版本 ✨新增
+│   └── Dockerfile.golang              # Go 版本 ✨新增
 │
 ├── 📜 脚本文件
 │   ├── run-docker.sh              # Node.js Docker 启动（原有）
@@ -65,7 +65,7 @@ AIClient-2-API/
 Go 源代码:    13 个文件
 文档文件:      7 个文件
 配置文件:      2 个文件（包括示例）
-构建文件:      1 个文件（Dockerfile.go）
+构建文件:      1 个文件（Dockerfile.golang）
 脚本文件:      1 个文件（run-go.sh）
 -----------------------------------
 总计:         24 个新文件
@@ -227,7 +227,7 @@ GO-FILES.md:            ~200 行（本文档）
 
 ### 构建和部署
 
-#### Dockerfile.go
+#### Dockerfile.golang
 - **作用**: Go 版本 Docker 构建
 - **特点**:
   - 多阶段构建
@@ -299,7 +299,7 @@ aiclient2api:go:        ~20 MB
 ### 新增的文件
 - 所有 `.go` 文件
 - Go 相关文档（README-GO.md 等）
-- Dockerfile.go
+- Dockerfile.golang
 - run-go.sh
 
 ### 不影响的文件
@@ -337,7 +337,7 @@ aiclient2api:go:        ~20 MB
 
 ### 配置和构建
 - [x] config.json.example
-- [x] Dockerfile.go
+- [x] Dockerfile.golang
 - [x] run-go.sh
 - [x] .gitignore (更新)
 

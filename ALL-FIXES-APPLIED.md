@@ -91,15 +91,15 @@ internal/server/server.go:188:59: not enough arguments in call to s.handleStream
 
 ---
 
-### 错误 5: Dockerfile.go 解析错误 ✅
+### 错误 5: Dockerfile.golang 解析错误 ✅
 
 **错误信息**:
 ```
-Error: Dockerfile.go:1:1: illegal character U+0023 '#'
+Error: Dockerfile.golang:1:1: illegal character U+0023 '#'
 ```
 
 **修复**: 
-- Dockerfile.go 是 Dockerfile（文本文件），不应被当作 Go 代码解析
+- Dockerfile.golang 是 Dockerfile（文本文件），不应被当作 Go 代码解析
 - 重新创建为正确的 Dockerfile 格式
 
 **提交**: `fe23ad5`
@@ -139,7 +139,7 @@ linters-settings:
 - [x] ✅ 移除未使用的 strconv import
 - [x] ✅ 修复未使用的 err 变量
 - [x] ✅ 修复函数调用参数不匹配
-- [x] ✅ 修复 Dockerfile.go 格式
+- [x] ✅ 修复 Dockerfile.golang 格式
 - [x] ✅ 更新 golangci-lint 配置
 - [x] ✅ 所有修复已提交并推送
 
@@ -162,7 +162,7 @@ linters-settings:
 3. `main.go` - Import 修复
 4. `internal/server/server.go` - 函数调用修复
 5. `.golangci.yml` - Linter 配置更新
-6. `Dockerfile.go` - 重新创建为正确格式
+6. `Dockerfile.golang` - 重新创建为正确格式
 
 ---
 

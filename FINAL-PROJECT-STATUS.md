@@ -512,7 +512,7 @@ curl http://localhost:3000/v1/chat/completions \
 ### 方式 2: Docker 部署
 
 ```bash
-docker build -f Dockerfile.go -t aiclient2api .
+docker build -f Dockerfile.golang -t aiclient2api .
 docker run -d -p 3000:3000 aiclient2api
 ```
 

@@ -71,7 +71,7 @@
 ```
 ✅ config.json.example       - 示例配置
 ✅ provider_pools.json       - 账号池配置 (兼容原版)
-✅ Dockerfile.go             - 优化的 Docker 构建
+✅ Dockerfile.golang             - 优化的 Docker 构建
 ✅ run-go.sh                 - 交互式启动脚本
 ✅ .gitignore                - Git 忽略规则
 ✅ go.mod / go.sum           - Go 模块依赖
@@ -372,7 +372,7 @@ AIClient-2-API/
 │   └── go.sum
 │
 ├── 🐳 Docker (1 file)
-│   └── Dockerfile.go
+│   └── Dockerfile.golang
 │
 ├── 📜 脚本 (1 file)
 │   └── run-go.sh

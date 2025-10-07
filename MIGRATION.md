@@ -198,7 +198,7 @@ docker run -d -p 3000:3000 aiclient2api:node
 ### Go 版本
 
 ```bash
-docker build -f Dockerfile.go -t aiclient2api:go .
+docker build -f Dockerfile.golang -t aiclient2api:go .
 docker run -d -p 3000:3000 aiclient2api:go
 ```
 
@@ -212,7 +212,7 @@ services:
   aiclient2api:
     build:
       context: .
-      dockerfile: Dockerfile.go  # 使用 Go 的 Dockerfile
+      dockerfile: Dockerfile.golang  # 使用 Go 的 Dockerfile
     ports:
       - "3000:3000"
     volumes:

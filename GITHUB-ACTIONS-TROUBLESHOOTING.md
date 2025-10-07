@@ -149,7 +149,7 @@ build:
 
 ```bash
 # 构建 Docker 镜像
-docker build -f Dockerfile.go -t aiclient2api:local .
+docker build -f Dockerfile.golang -t aiclient2api:local .
 
 # 运行
 docker run -d -p 3000:3000 aiclient2api:local

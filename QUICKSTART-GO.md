@@ -212,7 +212,7 @@ go run main.go
 ### 构建镜像
 
 ```bash
-docker build -f Dockerfile.go -t aiclient2api:go .
+docker build -f Dockerfile.golang -t aiclient2api:go .
 ```
 
 ### 运行容器
@@ -235,7 +235,7 @@ services:
   aiclient2api:
     build:
       context: .
-      dockerfile: Dockerfile.go
+      dockerfile: Dockerfile.golang
     ports:
       - "3000:3000"
     volumes:

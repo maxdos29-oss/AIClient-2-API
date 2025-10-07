@@ -133,7 +133,7 @@ v0.9.5: 98%  [██████████████████████
 - [x] 各种状态和总结文档
 
 ### 部署支持 (100%) ✅
-- [x] Dockerfile.go
+- [x] Dockerfile.golang
 - [x] GitHub Actions workflows
 - [x] 本地构建脚本
 - [x] 状态检查脚本
@@ -257,7 +257,7 @@ curl -X POST http://localhost:3000/v1/messages \
 ```
 ✅ config.json.example
 ✅ provider_pools.json
-✅ Dockerfile.go
+✅ Dockerfile.golang
 ✅ run-go.sh
 ✅ build-all-platforms.sh
 ✅ check-status.sh
@@ -588,7 +588,7 @@ Status: ✅ 已推送
 3. **生产部署**
    ```bash
    # Docker
-   docker build -f Dockerfile.go -t aiclient2api:latest .
+   docker build -f Dockerfile.golang -t aiclient2api:latest .
    docker run -d -p 3000:3000 aiclient2api:latest
    ```
 

@@ -150,7 +150,7 @@
 ### 8. 构建和部署 (100%) ✅
 
 ```
-✅ Dockerfile.go    - 优化的多阶段构建
+✅ Dockerfile.golang    - 优化的多阶段构建
 ✅ run-go.sh        - 交互式启动脚本
 ✅ config.json.example - 示例配置
 ✅ .gitignore       - 完整的忽略规则
@@ -384,7 +384,7 @@ Go 源文件:    16 个
 ```
 ✅ config.json.example
 ✅ provider_pools.json (兼容原版)
-✅ Dockerfile.go
+✅ Dockerfile.golang
 ✅ run-go.sh
 ✅ .gitignore
 ✅ go.sum (自动生成)
@@ -459,7 +459,7 @@ Go 源文件:    16 个
 
 ✅ **Docker 部署**
 ```bash
-docker build -f Dockerfile.go -t aiclient2api:go .
+docker build -f Dockerfile.golang -t aiclient2api:go .
 docker run -p 3000:3000 aiclient2api:go
 ```
 
