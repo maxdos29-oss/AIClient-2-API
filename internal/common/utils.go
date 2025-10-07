@@ -97,7 +97,7 @@ func LogConversation(logType, content, logMode, logFilename string) error {
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	logEntry := fmt.Sprintf("%s [%s]:\n%s\n--------------------------------------\n", 
+	logEntry := fmt.Sprintf("%s [%s]:\n%s\n--------------------------------------\n",
 		timestamp, strings.ToUpper(logType), content)
 
 	if logMode == "console" {
@@ -196,8 +196,8 @@ func SafeParseJSON(str string) interface{} {
 	cleanedStr := str
 	if strings.HasSuffix(cleanedStr, "\\") && !strings.HasSuffix(cleanedStr, "\\\\") {
 		cleanedStr = cleanedStr[:len(cleanedStr)-1]
-	} else if strings.HasSuffix(cleanedStr, "\\u") || 
-		strings.HasSuffix(cleanedStr, "\\u0") || 
+	} else if strings.HasSuffix(cleanedStr, "\\u") ||
+		strings.HasSuffix(cleanedStr, "\\u0") ||
 		strings.HasSuffix(cleanedStr, "\\u00") {
 		idx := strings.LastIndex(cleanedStr, "\\u")
 		if idx >= 0 {
@@ -242,4 +242,3 @@ func DecodeBase64(encoded string) ([]byte, error) {
 	}
 	return decoded, nil
 }
-

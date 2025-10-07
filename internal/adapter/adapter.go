@@ -102,31 +102,31 @@ func InitializeAdapters(config *common.Config) error {
 	// Initialize adapters for all default providers
 	for _, provider := range config.DefaultModelProviders {
 		providerConfig := &common.Config{
-			ModelProvider:             provider,
-			RequiredAPIKey:            config.RequiredAPIKey,
-			ServerPort:                config.ServerPort,
-			Host:                      config.Host,
-			OpenAIAPIKey:              config.OpenAIAPIKey,
-			OpenAIBaseURL:             config.OpenAIBaseURL,
-			ClaudeAPIKey:              config.ClaudeAPIKey,
-			ClaudeBaseURL:             config.ClaudeBaseURL,
-			GeminiOAuthCredsBase64:    config.GeminiOAuthCredsBase64,
-			GeminiOAuthCredsFilePath:  config.GeminiOAuthCredsFilePath,
-			KiroOAuthCredsBase64:      config.KiroOAuthCredsBase64,
-			KiroOAuthCredsFilePath:    config.KiroOAuthCredsFilePath,
-			QwenOAuthCredsFilePath:    config.QwenOAuthCredsFilePath,
-			ProjectID:                 config.ProjectID,
-			SystemPromptFilePath:      config.SystemPromptFilePath,
-			SystemPromptMode:          config.SystemPromptMode,
-			SystemPromptContent:       config.SystemPromptContent,
-			PromptLogBaseName:         config.PromptLogBaseName,
-			PromptLogMode:             config.PromptLogMode,
-			PromptLogFilename:         config.PromptLogFilename,
-			RequestMaxRetries:         config.RequestMaxRetries,
-			RequestBaseDelay:          config.RequestBaseDelay,
-			CronNearMinutes:           config.CronNearMinutes,
-			CronRefreshToken:          config.CronRefreshToken,
-			DefaultModelProviders:     config.DefaultModelProviders,
+			ModelProvider:            provider,
+			RequiredAPIKey:           config.RequiredAPIKey,
+			ServerPort:               config.ServerPort,
+			Host:                     config.Host,
+			OpenAIAPIKey:             config.OpenAIAPIKey,
+			OpenAIBaseURL:            config.OpenAIBaseURL,
+			ClaudeAPIKey:             config.ClaudeAPIKey,
+			ClaudeBaseURL:            config.ClaudeBaseURL,
+			GeminiOAuthCredsBase64:   config.GeminiOAuthCredsBase64,
+			GeminiOAuthCredsFilePath: config.GeminiOAuthCredsFilePath,
+			KiroOAuthCredsBase64:     config.KiroOAuthCredsBase64,
+			KiroOAuthCredsFilePath:   config.KiroOAuthCredsFilePath,
+			QwenOAuthCredsFilePath:   config.QwenOAuthCredsFilePath,
+			ProjectID:                config.ProjectID,
+			SystemPromptFilePath:     config.SystemPromptFilePath,
+			SystemPromptMode:         config.SystemPromptMode,
+			SystemPromptContent:      config.SystemPromptContent,
+			PromptLogBaseName:        config.PromptLogBaseName,
+			PromptLogMode:            config.PromptLogMode,
+			PromptLogFilename:        config.PromptLogFilename,
+			RequestMaxRetries:        config.RequestMaxRetries,
+			RequestBaseDelay:         config.RequestBaseDelay,
+			CronNearMinutes:          config.CronNearMinutes,
+			CronRefreshToken:         config.CronRefreshToken,
+			DefaultModelProviders:    config.DefaultModelProviders,
 		}
 
 		fmt.Printf("[Initialization] Initializing adapter for %s...\n", provider)
@@ -142,4 +142,3 @@ func InitializeAdapters(config *common.Config) error {
 
 	return nil
 }
-

@@ -51,13 +51,13 @@ func (s *Server) setupRoutes() {
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.ServerPort)
-	
+
 	log.Println("Supports multiple API formats:")
 	log.Println("  • OpenAI-compatible: /v1/chat/completions, /v1/models")
 	log.Println("  • Gemini-compatible: /v1beta/models, /v1beta/models/{model}:generateContent")
 	log.Println("  • Claude-compatible: /v1/messages")
 	log.Println("  • Health check: /health")
-	
+
 	s.httpServer = &http.Server{
 		Addr:         addr,
 		Handler:      s.corsMiddleware(s.authMiddleware(s.mux)),
@@ -308,10 +308,10 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUnaryResponse(w http.ResponseWriter, adp adapter.ApiServiceAdapter, model string, requestBody map[string]interface{}, fromProtocol, toProtocol string) {
 	// Apply system prompt if configured
 	requestBody = s.applySystemPrompt(requestBody, toProtocol)
-	
+
 	// Log request if enabled
 	s.logRequest(requestBody, toProtocol)
-	
+
 	// Convert request if needed
 	if fromProtocol != toProtocol {
 		convertedReq, err := s.converter.ConvertRequest(requestBody, fromProtocol, toProtocol)
@@ -350,10 +350,10 @@ func (s *Server) handleUnaryResponse(w http.ResponseWriter, adp adapter.ApiServi
 func (s *Server) handleStreamingResponse(w http.ResponseWriter, adp adapter.ApiServiceAdapter, model string, requestBody map[string]interface{}, fromProtocol, toProtocol string) {
 	// Apply system prompt if configured
 	requestBody = s.applySystemPrompt(requestBody, toProtocol)
-	
+
 	// Log request if enabled
 	s.logRequest(requestBody, toProtocol)
-	
+
 	// Convert request if needed
 	if fromProtocol != toProtocol {
 		convertedReq, err := s.converter.ConvertRequest(requestBody, fromProtocol, toProtocol)
@@ -716,4 +716,3 @@ func extractResponseText(response map[string]interface{}, protocol string) strin
 
 	return ""
 }
-

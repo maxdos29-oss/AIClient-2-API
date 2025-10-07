@@ -284,4 +284,3 @@ func loadSystemPromptFile(filePath string) (string, error) {
 	fmt.Printf("[System Prompt] Loaded system prompt from %s\n", filePath)
 	return content, nil
 }
-

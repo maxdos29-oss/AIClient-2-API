@@ -55,7 +55,7 @@ func convertOpenAIToGeminiRequest(openaiReq map[string]interface{}) map[string]i
 
 	// Add generation config
 	generationConfig := map[string]interface{}{}
-	
+
 	if maxTokens, ok := openaiReq["max_tokens"]; ok {
 		generationConfig["maxOutputTokens"] = maxTokens
 	} else {
@@ -274,4 +274,3 @@ func convertClaudeToGeminiStreamChunk(claudeChunk map[string]interface{}, model 
 		},
 	}
 }
-

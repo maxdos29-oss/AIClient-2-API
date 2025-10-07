@@ -224,7 +224,7 @@ func (pm *ProviderPoolManager) PerformHealthChecks() {
 func (pm *ProviderPoolManager) checkProviderHealth(providerType string, config map[string]interface{}) {
 	// Create a temporary adapter for health check
 	tempConfig := pm.configFromMap(providerType, config)
-	
+
 	adapter, err := adapter.GetAdapter(tempConfig)
 	if err != nil {
 		log.Printf("[ProviderPoolManager] Failed to get adapter for health check: %v", err)
@@ -319,4 +319,3 @@ func (pm *ProviderPoolManager) savePoolsToFile() {
 		return
 	}
 }
-

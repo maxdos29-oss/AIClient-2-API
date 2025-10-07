@@ -56,7 +56,7 @@ func main() {
 	// Start HTTP server
 	srv := server.NewServer(config, poolManager)
 	log.Printf("\n[Server] Starting Unified API Server on http://%s:%d\n", config.Host, config.ServerPort)
-	
+
 	// Setup graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -78,7 +78,7 @@ func main() {
 		log.Fatalf("[Server] Failed to start server: %v", err)
 	case sig := <-sigChan:
 		log.Printf("\n[Server] Received signal %v, initiating graceful shutdown...", sig)
-		
+
 		// Create shutdown context with timeout
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
@@ -164,24 +164,24 @@ func printConfig(config *common.Config) {
 	if len(config.DefaultModelProviders) > 1 {
 		log.Printf("  Additional Model Providers: %v", config.DefaultModelProviders[1:])
 	}
-	
+
 	// Print provider-specific details
 	for _, provider := range config.DefaultModelProviders {
 		printProviderDetails(provider, config)
 	}
-	
+
 	log.Printf("  System Prompt File: %s", config.SystemPromptFilePath)
 	log.Printf("  System Prompt Mode: %s", config.SystemPromptMode)
 	log.Printf("  Host: %s", config.Host)
 	log.Printf("  Port: %d", config.ServerPort)
 	log.Printf("  Required API Key: %s", config.RequiredAPIKey)
 	log.Printf("  Prompt Logging: %s", config.PromptLogMode)
-	
+
 	if config.CronRefreshToken {
 		log.Printf("  Cron Near Minutes: %d", config.CronNearMinutes)
 		log.Printf("  Cron Refresh Token: %t", config.CronRefreshToken)
 	}
-	
+
 	log.Println("------------------------------------------")
 }
 
@@ -198,7 +198,7 @@ func printProviderDetails(provider string, config *common.Config) {
 			baseURL = config.OpenAIBaseURL
 		}
 		log.Printf("  [%s] Base URL: %s", provider, baseURL)
-		
+
 	case common.ModelProviderClaudeCustom:
 		apiKey := "Not Set"
 		if config.ClaudeAPIKey != "" {
@@ -210,7 +210,7 @@ func printProviderDetails(provider string, config *common.Config) {
 			baseURL = config.ClaudeBaseURL
 		}
 		log.Printf("  [%s] Base URL: %s", provider, baseURL)
-		
+
 	case common.ModelProviderGeminiCLI:
 		if config.GeminiOAuthCredsFilePath != "" {
 			log.Printf("  [%s] OAuth Creds File Path: %s", provider, config.GeminiOAuthCredsFilePath)
@@ -224,7 +224,7 @@ func printProviderDetails(provider string, config *common.Config) {
 			projectID = config.ProjectID
 		}
 		log.Printf("  [%s] Project ID: %s", provider, projectID)
-		
+
 	case common.ModelProviderKiroAPI:
 		if config.KiroOAuthCredsFilePath != "" {
 			log.Printf("  [%s] OAuth Creds File Path: %s", provider, config.KiroOAuthCredsFilePath)
@@ -233,7 +233,7 @@ func printProviderDetails(provider string, config *common.Config) {
 		} else {
 			log.Printf("  [%s] OAuth Creds: Default", provider)
 		}
-		
+
 	case common.ModelProviderQwenAPI:
 		credsPath := "Default"
 		if config.QwenOAuthCredsFilePath != "" {
@@ -249,12 +249,12 @@ func startTokenRefreshCron(config *common.Config, poolManager *pool.ProviderPool
 
 	for range ticker.C {
 		log.Printf("[Heartbeat] Server is running. Current time: %s", time.Now().Format(time.RFC3339))
-		
+
 		// Perform health checks if pool manager exists
 		if poolManager != nil {
 			poolManager.PerformHealthChecks()
 		}
-		
+
 		// Refresh tokens for all adapters
 		for providerType, adapterInstance := range adapter.GetAllAdapters() {
 			if err := adapterInstance.RefreshToken(); err != nil {
@@ -265,4 +265,3 @@ func startTokenRefreshCron(config *common.Config, poolManager *pool.ProviderPool
 		}
 	}
 }
-

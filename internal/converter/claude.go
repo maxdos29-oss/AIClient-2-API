@@ -272,4 +272,3 @@ func convertGeminiToClaudeStreamChunk(geminiChunk map[string]interface{}, model 
 		},
 	}
 }
-

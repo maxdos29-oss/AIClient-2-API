@@ -536,7 +536,7 @@ func (k *KiroAdapter) buildClaudeResponse(rawResponse string, model string, isSt
 func (k *KiroAdapter) buildClaudeStreamingEvents(rawResponse string, model string) ([]map[string]interface{}, error) {
 	content := k.parseEventStreamContent(rawResponse)
 	messageID := uuid.New().String()
-	
+
 	events := []map[string]interface{}{
 		// message_start
 		{
@@ -615,7 +615,7 @@ func (k *KiroAdapter) parseEventStreamContent(rawData string) string {
 		}
 
 		jsonStr := "{" + part[:endIdx+1]
-		
+
 		var eventData map[string]interface{}
 		if err := json.Unmarshal([]byte(jsonStr), &eventData); err != nil {
 			continue
@@ -652,4 +652,3 @@ func extractContentText(content interface{}) string {
 	}
 	return ""
 }
-

@@ -98,7 +98,7 @@ func convertClaudeToOpenAIRequest(claudeReq map[string]interface{}) map[string]i
 			if msgMap, ok := msg.(map[string]interface{}); ok {
 				role := getStringOrDefault(msgMap, "role", "user")
 				content := msgMap["content"]
-				
+
 				openaiMessages = append(openaiMessages, map[string]interface{}{
 					"role":    role,
 					"content": extractText(content),
@@ -290,4 +290,3 @@ func extractPartsText(parts []interface{}) string {
 	}
 	return joinStrings(texts, "\n")
 }
-

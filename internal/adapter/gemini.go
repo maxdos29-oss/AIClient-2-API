@@ -105,7 +105,7 @@ func (g *GeminiAdapter) GenerateContent(model string, requestBody map[string]int
 	}
 
 	url := fmt.Sprintf("%s/models/%s:generateContent", g.apiEndpoint, model)
-	
+
 	jsonData, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -148,7 +148,7 @@ func (g *GeminiAdapter) GenerateContentStream(model string, requestBody map[stri
 	}
 
 	url := fmt.Sprintf("%s/models/%s:streamGenerateContent", g.apiEndpoint, model)
-	
+
 	jsonData, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -241,4 +241,3 @@ func (g *GeminiAdapter) RefreshToken() error {
 func (g *GeminiAdapter) IsInitialized() bool {
 	return g.initialized
 }
-

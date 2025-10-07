@@ -46,7 +46,7 @@ func (c *ClaudeAdapter) GenerateContent(model string, requestBody map[string]int
 	}
 
 	url := fmt.Sprintf("%s/v1/messages", baseURL)
-	
+
 	// Set model in request body
 	requestBody["model"] = model
 	// Set API version
@@ -101,7 +101,7 @@ func (c *ClaudeAdapter) GenerateContentStream(model string, requestBody map[stri
 	}
 
 	url := fmt.Sprintf("%s/v1/messages", baseURL)
-	
+
 	// Set model and streaming in request body
 	requestBody["model"] = model
 	requestBody["stream"] = true
@@ -210,4 +210,3 @@ func (c *ClaudeAdapter) RefreshToken() error {
 func (c *ClaudeAdapter) IsInitialized() bool {
 	return c.initialized
 }
-

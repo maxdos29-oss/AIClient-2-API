@@ -45,7 +45,7 @@ func (o *OpenAIAdapter) GenerateContent(model string, requestBody map[string]int
 	}
 
 	url := fmt.Sprintf("%s/chat/completions", baseURL)
-	
+
 	// Set model in request body
 	requestBody["model"] = model
 
@@ -97,7 +97,7 @@ func (o *OpenAIAdapter) GenerateContentStream(model string, requestBody map[stri
 	}
 
 	url := fmt.Sprintf("%s/chat/completions", baseURL)
-	
+
 	// Set model and streaming in request body
 	requestBody["model"] = model
 	requestBody["stream"] = true
@@ -152,7 +152,7 @@ func (o *OpenAIAdapter) GenerateContentStream(model string, requestBody map[stri
 			// SSE format: "data: {json}"
 			if bytes.HasPrefix(line, []byte("data: ")) {
 				data := bytes.TrimPrefix(line, []byte("data: "))
-				
+
 				// Check for [DONE] signal
 				if bytes.Equal(data, []byte("[DONE]")) {
 					break
@@ -223,4 +223,3 @@ func (o *OpenAIAdapter) RefreshToken() error {
 func (o *OpenAIAdapter) IsInitialized() bool {
 	return o.initialized
 }
-

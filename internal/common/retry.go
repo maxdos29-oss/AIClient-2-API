@@ -34,9 +34,9 @@ func WithRetry(config *RetryConfig, fn RetryableFunc) (interface{}, error) {
 
 		// Calculate delay with exponential backoff
 		delay := time.Duration(float64(config.BaseDelay) * math.Pow(2, float64(attempt)))
-		
+
 		// Log retry attempt
-		fmt.Printf("[Retry] Attempt %d failed: %v. Retrying in %v...\n", 
+		fmt.Printf("[Retry] Attempt %d failed: %v. Retrying in %v...\n",
 			attempt+1, err, delay)
 
 		time.Sleep(delay)
@@ -58,4 +58,3 @@ func ShouldRetry(err error, statusCode int) bool {
 
 	return false
 }
-

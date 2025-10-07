@@ -76,4 +76,3 @@ func (q *QwenAdapter) RefreshToken() error {
 func (q *QwenAdapter) IsInitialized() bool {
 	return q.initialized
 }
-
