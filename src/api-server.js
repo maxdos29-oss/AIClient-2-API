@@ -558,6 +558,7 @@ function createRequestHandler(config) {
 
         console.log(`\n${new Date().toLocaleString()}`);
         console.log(`[Server] Received request: ${req.method} http://${req.headers.host}${req.url}`);
+        console.log(`[Server] Headers:`, JSON.stringify(req.headers, null, 2));
 
         // Allow overriding MODEL_PROVIDER via request header
         const modelProviderHeader = req.headers['model-provider'];
@@ -569,22 +570,58 @@ function createRequestHandler(config) {
 
         const requestUrl = new URL(req.url, `http://${req.headers.host}`);
         let path = requestUrl.pathname;
+
+        const method = req.method;
+
+        // Handle OPTIONS (CORS preflight) immediately, before any processing
+        if (method === 'OPTIONS') {
+            const corsHeaders = {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access',
+                'Access-Control-Max-Age': '86400' // 24 hours
+            };
+            console.log(`[Server] OPTIONS response headers:`, JSON.stringify(corsHeaders, null, 2));
+            res.writeHead(204, corsHeaders);
+            res.end();
+            return;
+        }
+
+        // Health check endpoint - no authentication required
+        if (method === 'GET' && path === '/health') {
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access'
+            });
+            return res.end(JSON.stringify({
+                status: 'healthy',
+                timestamp: new Date().toISOString(),
+                provider: currentConfig.MODEL_PROVIDER
+            }));
+        }
+
         // Check if the first path segment matches a MODEL_PROVIDER and switch if it does
         const pathSegments = path.split('/').filter(segment => segment.length > 0);
         if (pathSegments.length > 0) {
             const firstSegment = pathSegments[0];
-            // Check if firstSegment is a valid MODEL_PROVIDER value
-            const isValidProvider = Object.values(MODEL_PROVIDER).includes(firstSegment);
-            if (firstSegment && isValidProvider) {
-                currentConfig.MODEL_PROVIDER = firstSegment;
-                console.log(`[Config] MODEL_PROVIDER overridden by path segment to: ${currentConfig.MODEL_PROVIDER}`);
-                // Remove the first segment from the path to maintain routing consistency
-                pathSegments.shift();
-                path = '/' + pathSegments.join('/');
-                // Update the requestUrl pathname as well
-                requestUrl.pathname = path;
-            } else if (firstSegment && !isValidProvider) {
-                console.log(`[Config] Ignoring invalid MODEL_PROVIDER in path segment: ${firstSegment}`);
+            // Skip known API version prefixes to avoid false warnings
+            const knownApiPrefixes = ['v1', 'v1beta'];
+            if (!knownApiPrefixes.includes(firstSegment)) {
+                // Check if firstSegment is a valid MODEL_PROVIDER value
+                const isValidProvider = Object.values(MODEL_PROVIDER).includes(firstSegment);
+                if (firstSegment && isValidProvider) {
+                    currentConfig.MODEL_PROVIDER = firstSegment;
+                    console.log(`[Config] MODEL_PROVIDER overridden by path segment to: ${currentConfig.MODEL_PROVIDER}`);
+                    // Remove the first segment from the path to maintain routing consistency
+                    pathSegments.shift();
+                    path = '/' + pathSegments.join('/');
+                    // Update the requestUrl pathname as well
+                    requestUrl.pathname = path;
+                } else if (firstSegment && !isValidProvider) {
+                    console.log(`[Config] Ignoring invalid MODEL_PROVIDER in path segment: ${firstSegment}`);
+                }
             }
         }
 
@@ -605,31 +642,13 @@ function createRequestHandler(config) {
             return;
         }
 
-        const method = req.method;
-        if (method === 'OPTIONS') {
-            // 设置 CORS 头部，允许所有来源和方法
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-goog-api-key, Model-Provider'); // 添加 Model-Provider
-            
-            // OPTIONS 请求通常返回 204 No Content
-            res.writeHead(204);
-            res.end();
-            return;
-        }
-
-        // Health check endpoint - no authentication required
-        if (method === 'GET' && path === '/health') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({
-                status: 'healthy',
-                timestamp: new Date().toISOString(),
-                provider: currentConfig.MODEL_PROVIDER
-            }));
-        }
-
         if (!isAuthorized(req, requestUrl, currentConfig.REQUIRED_API_KEY)) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.writeHead(401, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access'
+            });
             return res.end(JSON.stringify({ error: { message: 'Unauthorized: API key is invalid or missing.' } }));
         }
 
@@ -659,7 +678,12 @@ function createRequestHandler(config) {
             }
 
             // Fallback for unmatched routes
-            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.writeHead(404, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access'
+            });
             res.end(JSON.stringify({ error: { message: 'Not Found' } }));
 
         } catch (error) {

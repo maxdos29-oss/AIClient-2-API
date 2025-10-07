@@ -6,6 +6,8 @@
 
 **一个能将多种仅客户端内使用的大模型 API（Gemini CLI, Qwen Code Plus, Kiro Claude...），模拟请求，统一封装为本地 OpenAI 兼容接口的强大代理。**
 
+> 🦀 **新增 Rust 版本！** 性能提升 3-4 倍，内存占用减少 75%！[查看详情 →](./RUST_VERSION_README.md) | [Rust 目录 →](./rust/)
+
 </div>
 
 <div align="center">

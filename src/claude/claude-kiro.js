@@ -386,8 +386,8 @@ async initializeAuth(forceRefresh = false) {
 
         // Ensure region is set before using it in URLs
         if (!this.region) {
-            console.warn('[Kiro Auth] Region not found in credentials. Using default region us-east-1 for URLs.');
-            this.region = 'us-east-1'; // Set default region
+            console.warn('[Kiro Auth] Region not found in credentials. Using default region ap-northeast-1 (Tokyo) for URLs.');
+            this.region = 'us-east-1'; // Set default region to Tokyo
         }
 
         this.refreshUrl = KIRO_CONSTANTS.REFRESH_URL.replace("{{region}}", this.region);

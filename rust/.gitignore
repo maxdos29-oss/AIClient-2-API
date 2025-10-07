@@ -1,0 +1,38 @@
+# Rust
+/target
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Configuration files (contain secrets)
+config.json
+provider_pools.json
+*.json
+!config.example.json
+!provider_pools.example.json
+
+# OAuth credentials
+oauth_creds.json
+kiro-auth-token.json
+*.pem
+*.key
+
+# Logs
+*.log
+prompt_log*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+

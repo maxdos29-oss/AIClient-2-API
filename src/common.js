@@ -109,12 +109,16 @@ export function getRequestBody(req) {
                 return resolve({});
             }
             try {
-                resolve(JSON.parse(body));
+                const parsed = JSON.parse(body);
+                console.log(`[Request Body] ${JSON.stringify(parsed, null, 2)}`);
+                resolve(parsed);
             } catch (error) {
+                console.error(`[Request Body Error] Invalid JSON: ${body}`);
                 reject(new Error("Invalid JSON in request body."));
             }
         });
         req.on('error', err => {
+            console.error(`[Request Error]`, err);
             reject(err);
         });
     });
@@ -187,10 +191,25 @@ export function isAuthorized(req, requestUrl, REQUIRED_API_KEY) {
  * @param {boolean} isStream - Whether the response is a stream.
  */
 export async function handleUnifiedResponse(res, responsePayload, isStream) {
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access'
+    };
+
     if (isStream) {
-        res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive", "Transfer-Encoding": "chunked" });
+        res.writeHead(200, {
+            ...corsHeaders,
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Transfer-Encoding": "chunked"
+        });
     } else {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+        });
     }
 
     if (isStream) {
@@ -337,7 +356,12 @@ export async function handleModelListRequest(req, res, service, endpointType, CO
         }
 
         console.log(`[ModelList Response] Sending model list to client: ${JSON.stringify(clientModelList)}`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access'
+        });
         res.end(JSON.stringify(clientModelList));
     } catch (error) {
         console.error('\n[Server] Error during model list processing:', error.stack);
@@ -509,7 +533,12 @@ export function handleError(res, error) {
     console.error('[Server] Full error details:', error.stack);
 
     if (!res.headersSent) {
-        res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+        res.writeHead(statusCode, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, x-goog-api-key, Model-Provider, anthropic-version, anthropic-dangerous-direct-browser-access'
+        });
     }
 
     const errorPayload = {

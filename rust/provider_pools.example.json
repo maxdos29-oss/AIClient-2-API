@@ -1,0 +1,64 @@
+{
+  "openai-custom": [
+    {
+      "OPENAI_API_KEY": "sk-openai-key1",
+      "OPENAI_BASE_URL": "https://api.openai.com/v1",
+      "checkModelName": null,
+      "uuid": "uuid-1",
+      "isHealthy": true,
+      "lastUsed": null,
+      "usageCount": 0,
+      "errorCount": 0,
+      "lastErrorTime": null
+    },
+    {
+      "OPENAI_API_KEY": "sk-openai-key2",
+      "OPENAI_BASE_URL": "https://api.openai.com/v1",
+      "checkModelName": null,
+      "uuid": "uuid-2",
+      "isHealthy": true,
+      "lastUsed": null,
+      "usageCount": 0,
+      "errorCount": 0,
+      "lastErrorTime": null
+    }
+  ],
+  "gemini-cli-oauth": [
+    {
+      "GEMINI_OAUTH_CREDS_FILE_PATH": "./credentials1.json",
+      "PROJECT_ID": "your-project-id-1",
+      "checkModelName": null,
+      "uuid": "uuid-3",
+      "isHealthy": true,
+      "lastUsed": null,
+      "usageCount": 0,
+      "errorCount": 0,
+      "lastErrorTime": null
+    },
+    {
+      "GEMINI_OAUTH_CREDS_FILE_PATH": "./credentials2.json",
+      "PROJECT_ID": "your-project-id-2",
+      "checkModelName": null,
+      "uuid": "uuid-4",
+      "isHealthy": true,
+      "lastUsed": null,
+      "usageCount": 0,
+      "errorCount": 0,
+      "lastErrorTime": null
+    }
+  ],
+  "claude-custom": [
+    {
+      "CLAUDE_API_KEY": "sk-claude-key1",
+      "CLAUDE_BASE_URL": "https://api.anthropic.com",
+      "checkModelName": null,
+      "uuid": "uuid-5",
+      "isHealthy": true,
+      "lastUsed": null,
+      "usageCount": 0,
+      "errorCount": 0,
+      "lastErrorTime": null
+    }
+  ]
+}
+

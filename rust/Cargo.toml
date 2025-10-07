@@ -1,0 +1,97 @@
+[package]
+name = "aiclient2api-rust"
+version = "1.0.0"
+edition = "2021"
+authors = ["AIClient2API Contributors"]
+description = "A powerful proxy that converts multiple AI client APIs to OpenAI-compatible endpoints"
+license = "GPL-3.0"
+
+[lib]
+name = "aiclient2api_rust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "aiclient2api-rust"
+path = "src/main.rs"
+
+[dependencies]
+# HTTP server framework
+tokio = { version = "1.40", features = ["full"] }
+axum = { version = "0.7", features = ["multipart", "macros"] }
+tower = { version = "0.5", features = ["util", "timeout"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+hyper = { version = "1.5", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# OAuth2 and authentication
+# We implement OAuth manually, so these are optional
+# oauth2 = "4.4"
+# yup-oauth2 = "11.0"
+
+# Async stream utilities
+futures = "0.3"
+async-stream = "0.3"
+tokio-stream = "0.1"
+async-trait = "0.1"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Directory utilities
+dirs = "5.0"
+
+# UUID generation
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Configuration and environment
+config = "0.14"
+dotenv = "0.15"
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Base64 encoding/decoding
+base64 = "0.22"
+
+# MD5 hashing
+md5 = "0.7"
+
+# Deep merge for configuration
+merge = "0.1"
+
+# Cron job scheduling
+cron = "0.12"
+tokio-cron-scheduler = "0.13"
+
+# URL parsing
+url = "2.5"
+
+[dev-dependencies]
+# Testing
+httpmock = "0.7"
+mockito = "1.5"
+tower = { version = "0.5", features = ["util"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+

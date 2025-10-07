@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  aiclient2api-rust:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aiclient2api-rust
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./provider_pools.json:/app/provider_pools.json:ro
+      - ./input_system_prompt.txt:/app/input_system_prompt.txt:ro
+      - ./logs:/app/logs
+    environment:
+      - RUST_LOG=info,aiclient2api_rust=debug
+      - HTTP_PROXY=${HTTP_PROXY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
