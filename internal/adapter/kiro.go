@@ -2,6 +2,8 @@ package adapter
 
 import (
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/justlovemaki/AIClient-2-API/internal/common"
 )
@@ -9,6 +11,7 @@ import (
 // KiroAdapter implements the ApiServiceAdapter interface for Kiro API
 type KiroAdapter struct {
 	config      *common.Config
+	client      *http.Client
 	initialized bool
 }
 
@@ -16,6 +19,7 @@ type KiroAdapter struct {
 func NewKiroAdapter(config *common.Config) (*KiroAdapter, error) {
 	adapter := &KiroAdapter{
 		config:      config,
+		client:      &http.Client{Timeout: 30 * time.Second},
 		initialized: false,
 	}
 

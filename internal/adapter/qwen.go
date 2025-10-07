@@ -2,6 +2,8 @@ package adapter
 
 import (
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/justlovemaki/AIClient-2-API/internal/common"
 )
@@ -9,6 +11,7 @@ import (
 // QwenAdapter implements the ApiServiceAdapter interface for Qwen API
 type QwenAdapter struct {
 	config      *common.Config
+	client      *http.Client
 	initialized bool
 }
 
@@ -16,6 +19,7 @@ type QwenAdapter struct {
 func NewQwenAdapter(config *common.Config) (*QwenAdapter, error) {
 	adapter := &QwenAdapter{
 		config:      config,
+		client:      &http.Client{Timeout: 30 * time.Second},
 		initialized: false,
 	}
 
