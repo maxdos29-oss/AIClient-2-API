@@ -8,7 +8,7 @@ RUN apk add --no-cache git
 WORKDIR /app
 
 # Copy go mod files
-COPY go.mod go.sum ./
+COPY go.mod go.sum* ./
 
 # Download dependencies
 RUN go mod download
@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o aiclient2api .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o aiclient2api .
 
 # Runtime stage
 FROM alpine:latest
@@ -30,9 +30,9 @@ WORKDIR /root/
 # Copy the binary from builder
 COPY --from=builder /app/aiclient2api .
 
-# Copy configuration files
-COPY config.json ./
-COPY provider_pools.json ./
+# Copy configuration files if they exist
+COPY config.json* ./
+COPY provider_pools.json* ./
 
 # Expose port
 EXPOSE 3000

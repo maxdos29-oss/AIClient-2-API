@@ -181,13 +181,17 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine protocols (this is for OpenAI endpoint but was missing)
+	fromProtocol := common.ModelProtocolOpenAI
+	toProtocol := common.GetProtocolPrefix(currentConfig.ModelProvider)
+
 	// Check if streaming is requested
 	stream, _ := requestBody["stream"].(bool)
 
 	if stream {
-		s.handleStreamingResponse(w, adapter, model, requestBody)
+		s.handleStreamingResponse(w, adapter, model, requestBody, fromProtocol, toProtocol)
 	} else {
-		s.handleUnaryResponse(w, adapter, model, requestBody)
+		s.handleUnaryResponse(w, adapter, model, requestBody, fromProtocol, toProtocol)
 	}
 }
 

@@ -117,7 +117,6 @@ func (k *KiroAdapter) initializeAuth(forceRefresh bool) error {
 
 	// Load credentials
 	var credsData map[string]interface{}
-	var err error
 
 	// Try Base64 first
 	if k.config.KiroOAuthCredsBase64 != "" {
