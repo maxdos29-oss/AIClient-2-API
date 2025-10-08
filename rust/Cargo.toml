@@ -66,6 +66,9 @@ thiserror = "1.0"
 # Base64 encoding/decoding
 base64 = "0.22"
 
+# Regular expressions
+regex = "1.10"
+
 # MD5 hashing
 md5 = "0.7"
 

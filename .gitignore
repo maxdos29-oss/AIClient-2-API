@@ -1,5 +1,62 @@
-node_modules
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+aiclient2api
+
+# Build artifacts
+/bin/
+/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Config files (keep examples)
 config.json
-.serena/
-.claude/
-CLAUDE.md
+provider_pools.json
+!config.json.example
+!provider_pools.json.example
+
+# Credentials
+*_creds.json
+*_credentials.json
+oauth_creds.json
+kiro-auth-token.json
+*.pem
+*.key
+
+# Logs
+*.log
+prompt_log*.log
+fetch_system_prompt.txt
+
+# System prompt files (user-specific)
+input_system_prompt.txt
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Node.js (for backwards compatibility)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Docker
+.dockerignore
+
+# OS
+Thumbs.db

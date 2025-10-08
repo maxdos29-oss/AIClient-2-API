@@ -225,12 +225,14 @@ async fn claude_messages_handler(
         match state.adapter.generate_content_stream(&model, body).await {
             Ok(stream) => {
                 // Convert the stream to SSE format
+                // Claude API uses simple SSE format with only 'data:' lines
                 let sse_stream = stream.map(|result| {
                     match result {
                         Ok(chunk) => {
-                            // Format as SSE event
+                            // Format as SSE event with event type based on chunk type
                             let data = serde_json::to_string(&chunk).unwrap_or_default();
-                            Ok::<_, Infallible>(Event::default().data(data))
+                            let event_type = chunk.get("type").and_then(|t| t.as_str()).unwrap_or("message");
+                            Ok::<_, Infallible>(Event::default().event(event_type).data(data))
                         }
                         Err(e) => {
                             error!("Stream error: {}", e);
@@ -241,7 +243,7 @@ async fn claude_messages_handler(
                                     "message": e.to_string()
                                 }
                             });
-                            Ok(Event::default().data(serde_json::to_string(&error_data).unwrap_or_default()))
+                            Ok(Event::default().event("error").data(serde_json::to_string(&error_data).unwrap_or_default()))
                         }
                     }
                 });
