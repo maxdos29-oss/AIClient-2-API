@@ -55,7 +55,11 @@ impl GeminiApiService {
         base_delay: u64,
     ) -> Result<Self> {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(300))
+            .timeout(std::time::Duration::from_secs(60))  // 减少到60秒
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .pool_max_idle_per_host(10)
+            .tcp_nodelay(true)
             .build()?;
 
         // Determine credentials path

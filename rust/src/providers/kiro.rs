@@ -23,6 +23,9 @@ use tokio::fs;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+use lru::LruCache;
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 const CLAUDE_MODELS: &[&str] = &[
     "claude-sonnet-4-20250514",
@@ -75,6 +78,7 @@ pub struct KiroApiService {
     max_retries: u32,
     base_delay: u64,
     region: String,
+    request_cache: Arc<RwLock<lru::LruCache<u64, serde_json::Value>>>,
 }
 
 impl KiroApiService {
@@ -85,7 +89,11 @@ impl KiroApiService {
         base_delay: u64,
     ) -> Result<Self> {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(300))
+            .timeout(std::time::Duration::from_secs(30))  // 减少到30秒
+            .connect_timeout(std::time::Duration::from_secs(5))  // 连接超时5秒
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .pool_max_idle_per_host(10)
+            .tcp_nodelay(true)  // 禁用 Nagle 算法，减少延迟
             .build()?;
 
         let credentials_path = oauth_creds_file.unwrap_or_else(|| {
@@ -116,6 +124,10 @@ impl KiroApiService {
             .unwrap_or_else(|| "us-east-1".to_string());
 
         info!("Kiro API Service initialized with region: {}", region);
+        
+        // 初始化请求缓存 (100个条目)
+        let request_cache = Arc::new(RwLock::new(LruCache::new(std::num::NonZeroUsize::new(100).unwrap())));
+        
         Ok(Self {
             client,
             credentials: Arc::new(RwLock::new(credentials)),
@@ -123,6 +135,7 @@ impl KiroApiService {
             max_retries,
             base_delay,
             region,
+            request_cache,
         })
     }
     
@@ -139,8 +152,39 @@ impl KiroApiService {
         }
     }
     
-    /// Convert Claude messages format to CodeWhisperer request format
+    /// Calculate hash for request caching
+    fn calculate_request_hash(&self, request: &serde_json::Value) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        request.to_string().hash(&mut hasher);
+        hasher.finish()
+    }
+    
+    /// Convert Claude messages format to CodeWhisperer request format with caching
     async fn build_codewhisperer_request(&self, claude_request: &serde_json::Value) -> Result<serde_json::Value> {
+        // 检查缓存
+        let hash = self.calculate_request_hash(claude_request);
+        {
+            let cache = self.request_cache.read().await;
+            if let Some(cached) = cache.peek(&hash) {
+                debug!("Using cached request conversion");
+                return Ok(cached.clone());
+            }
+        }
+        
+        // 如果缓存未命中，执行转换
+        let result = self.build_codewhisperer_request_uncached(claude_request).await?;
+        
+        // 缓存结果
+        {
+            let mut cache = self.request_cache.write().await;
+            cache.put(hash, result.clone());
+        }
+        
+        Ok(result)
+    }
+    
+    /// Convert Claude messages format to CodeWhisperer request format (uncached)
+    async fn build_codewhisperer_request_uncached(&self, claude_request: &serde_json::Value) -> Result<serde_json::Value> {
         let messages = claude_request.get("messages")
             .and_then(|v| v.as_array())
             .ok_or_else(|| anyhow::anyhow!("Missing or invalid messages field"))?;
@@ -577,111 +621,121 @@ impl KiroApiService {
         }
     }
     
-    /// Parse CodeWhisperer event stream response to extract text content and tool calls
-    /// This implementation closely follows the Node.js parseEventStreamChunk logic
-    fn parse_codewhisperer_response(&self, response_text: &str) -> Result<(String, Vec<serde_json::Value>)> {
-        let mut full_content = String::new();
-        let mut tool_calls: Vec<serde_json::Value> = Vec::new();
-        let mut current_tool_call: Option<serde_json::Value> = None;
+    /// Find the end position of a JSON object in a string slice
+    /// Returns the position of the matching closing brace
+    fn find_json_end(&self, text: &str) -> Option<usize> {
+        let mut depth = 0;
+        let mut in_string = false;
+        let mut escape_next = false;
+        let bytes = text.as_bytes();
         
-        info!("Starting to parse CodeWhisperer response, length: {}", response_text.len());
-        debug!("Response preview: {}", &response_text[..response_text.len().min(500)]);
-        
-        // Find all "event{" positions manually (Rust regex doesn't support look-ahead)
-        let mut event_positions: Vec<usize> = Vec::new();
-        let mut search_start = 0;
-        while let Some(pos) = response_text[search_start..].find("event{") {
-            event_positions.push(search_start + pos);
-            search_start += pos + 6; // Move past "event{"
-        }
-        
-        let mut found_events = 0;
-        
-        // Process each event block
-        for (i, &event_start) in event_positions.iter().enumerate() {
-            found_events += 1;
-            
-            // Determine the end of this event block (start of next event or end of string)
-            let event_end = if i + 1 < event_positions.len() {
-                event_positions[i + 1]
-            } else {
-                response_text.len()
-            };
-            
-            // Extract the event block content (skip "event" prefix)
-            let event_block_start = event_start + 5; // Skip "event"
-            if event_block_start >= event_end {
+        for (i, &ch) in bytes.iter().enumerate() {
+            if escape_next {
+                escape_next = false;
                 continue;
             }
             
-            let potential_json_block = &response_text[event_block_start..event_end];
+            match ch {
+                b'\\' if in_string => escape_next = true,
+                b'"' if !escape_next => in_string = !in_string,
+                b'{' if !in_string => depth += 1,
+                b'}' if !in_string => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(i);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+    
+    /// Parse CodeWhisperer event stream response to extract text content and tool calls
+    /// Optimized version with better performance
+    fn parse_codewhisperer_response(&self, response_text: &str) -> Result<(String, Vec<serde_json::Value>)> {
+        let mut full_content = String::with_capacity(response_text.len() / 2);  // 预分配容量
+        let mut tool_calls: Vec<serde_json::Value> = Vec::new();
+        let mut current_tool_call: Option<serde_json::Value> = None;
+        
+        let response_len = response_text.len();
+        info!("Starting to parse CodeWhisperer response, length: {}", response_len);
+        
+        // 使用更高效的搜索方法
+        let event_prefix = "event{";
+        let mut pos = 0;
+        let response_bytes = response_text.as_bytes();
+        let prefix_bytes = event_prefix.as_bytes();
+        
+        // 快速查找所有事件位置
+        let mut event_positions = Vec::with_capacity(response_len / 100);  // 预估事件数量
+        while pos < response_len - prefix_bytes.len() {
+            if &response_bytes[pos..pos + prefix_bytes.len()] == prefix_bytes {
+                event_positions.push(pos);
+                pos += prefix_bytes.len();
+            } else {
+                pos += 1;
+            }
+        }
+        
+        let found_events = event_positions.len();
+        debug!("Found {} event blocks", found_events);
+        
+        // 处理每个事件块
+        for i in 0..found_events {
+            let event_start = event_positions[i] + 5;  // Skip "event"
+            let event_end = if i + 1 < found_events {
+                event_positions[i + 1]
+            } else {
+                response_len
+            };
             
-            // Try to find valid JSON by looking for closing braces
-                    let mut search_pos = 0;
-            loop {
-                // Find next '}' starting from search_pos
-                match potential_json_block[search_pos..].find('}') {
-                    Some(relative_pos) => {
-                        let brace_pos = search_pos + relative_pos;
-                        let json_candidate = &potential_json_block[..=brace_pos];
-                        
-                        // Try to parse this as JSON
-                        if let Ok(event_data) = serde_json::from_str::<serde_json::Value>(json_candidate) {
-                            // Successfully parsed - check what type of event this is
-                            
-                            // Check for tool use events (structured)
-                            if event_data.get("name").is_some() && event_data.get("toolUseId").is_some() {
-                                let name = event_data.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                                let tool_use_id = event_data.get("toolUseId").and_then(|id| id.as_str()).unwrap_or("");
-                                
-                                if current_tool_call.is_none() {
-                                    // Start new tool call - input as empty string to match Node.js
-                                    current_tool_call = Some(json!({
-                                        "id": tool_use_id,
-                                        "type": "tool_use",
-                                        "name": name,
-                                        "input": ""
-                                    }));
-                                }
-                                
-                                // Accumulate input if present
-                                if let Some(input) = event_data.get("input").and_then(|i| i.as_str()) {
-                                    if let Some(ref mut tool_call) = current_tool_call {
-                                        if let Some(existing_input) = tool_call.get("input").and_then(|i| i.as_str()) {
-                                            tool_call["input"] = json!(format!("{}{}", existing_input, input));
-                                        } else {
-                                            tool_call["input"] = json!(input);
-                                        }
-                                    }
-                                }
-                                
-                                // Check if tool call is complete
-                                if event_data.get("stop").and_then(|s| s.as_bool()).unwrap_or(false) {
-                                    if let Some(tool_call) = current_tool_call.take() {
-                                        // Keep input as string, just like Node.js version
-                                        // Don't parse to JSON object to maintain compatibility
-                                        tool_calls.push(tool_call);
-                                    }
-                                }
-                            }
-                            // Check for content events (not followup prompts)
-                            else if event_data.get("followupPrompt").is_none() {
-                                if let Some(text) = event_data.get("content").and_then(|c| c.as_str()) {
-                                    let decoded = text.replace("\\n", "\n");
-                                    full_content.push_str(&decoded);
-                                }
-                            }
-                            
-                            // Successfully parsed and processed, break to next event block
-                            break;
+            if event_start >= event_end {
+                continue;
+            }
+            
+            // 使用更高效的 JSON 解析策略
+            let event_slice = &response_text[event_start..event_end];
+            if let Some(json_end) = self.find_json_end(event_slice) {
+                let json_str = &event_slice[..=json_end];
+                if let Ok(event_data) = serde_json::from_str::<serde_json::Value>(json_str) {
+                    // 成功解析 - 检查事件类型
+                    if let (Some(name), Some(tool_use_id)) = (event_data.get("name").and_then(|n| n.as_str()), 
+                                                               event_data.get("toolUseId").and_then(|id| id.as_str())) {
+                        if current_tool_call.is_none() {
+                            current_tool_call = Some(json!({
+                                "id": tool_use_id,
+                                "type": "tool_use",
+                                "name": name,
+                                "input": ""
+                            }));
                         }
                         
-                        // JSON parse failed, continue searching for next '}'
-                        search_pos = brace_pos + 1;
+                        // 累加输入
+                        if let Some(input) = event_data.get("input").and_then(|i| i.as_str()) {
+                            if let Some(ref mut tool_call) = current_tool_call {
+                                let current_input = tool_call["input"].as_str().unwrap_or("");
+                                tool_call["input"] = json!(format!("{}{}", current_input, input));
+                            }
+                        }
+                        
+                        // 检查工具调用是否完成
+                        if event_data.get("stop").and_then(|s| s.as_bool()).unwrap_or(false) {
+                            if let Some(tool_call) = current_tool_call.take() {
+                                tool_calls.push(tool_call);
+                            }
+                        }
                     }
-                    None => {
-                        // No more '}' found in this block
-                        break;
+                    // 检查内容事件
+                    else if event_data.get("followupPrompt").is_none() {
+                        if let Some(text) = event_data.get("content").and_then(|c| c.as_str()) {
+                            // 使用更高效的替换方法
+                            if text.contains("\\n") {
+                                full_content.push_str(&text.replace("\\n", "\n"));
+                            } else {
+                                full_content.push_str(text);
+                            }
+                        }
                     }
                 }
             }
@@ -1037,7 +1091,19 @@ impl KiroApiService {
         }
 
         if (status.as_u16() == 429 || status.is_server_error()) && retry_count < self.max_retries {
-            let delay = self.base_delay * 2_u64.pow(retry_count);
+            // 检查 Retry-After 头
+            let retry_after_secs = response.headers()
+                .get("Retry-After")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+            
+            let delay = if let Some(secs) = retry_after_secs {
+                secs * 1000  // 转换为毫秒
+            } else {
+                // 使用线性退避而非指数退避，减少重试延迟
+                self.base_delay * (retry_count + 1) as u64
+            };
+            
             warn!("Request failed with status {}, retrying in {}ms...", status, delay);
             tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
             return self.call_api_with_retry(endpoint, body, retry_count + 1).await;
