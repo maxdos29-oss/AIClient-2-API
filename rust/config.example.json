@@ -1,0 +1,41 @@
+{
+  "host": "localhost",
+  "port": 3000,
+  "required_api_key": "123456",
+  "model_provider": "gemini-cli-oauth",
+  "default_model_providers": [
+    "gemini-cli-oauth",
+    "openai-custom",
+    "claude-custom"
+  ],
+  
+  "openai_api_key": null,
+  "openai_base_url": "https://api.openai.com/v1",
+  
+  "claude_api_key": null,
+  "claude_base_url": "https://api.anthropic.com",
+  
+  "gemini_oauth_creds_base64": null,
+  "gemini_oauth_creds_file_path": "~/.gemini/oauth_creds.json",
+  "project_id": null,
+  
+  "kiro_oauth_creds_base64": null,
+  "kiro_oauth_creds_file_path": "~/.aws/sso/cache/kiro-auth-token.json",
+  
+  "qwen_oauth_creds_file_path": "~/.qwen/oauth_creds.json",
+  
+  "system_prompt_file_path": "input_system_prompt.txt",
+  "system_prompt_mode": "overwrite",
+  
+  "prompt_log_mode": "none",
+  "prompt_log_base_name": "prompt_log",
+  
+  "request_max_retries": 3,
+  "request_base_delay": 1000,
+  
+  "cron_near_minutes": 15,
+  "cron_refresh_token": true,
+  
+  "provider_pools_file_path": "provider_pools.json"
+}
+
