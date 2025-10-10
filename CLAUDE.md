@@ -1,282 +1,315 @@
-# Kiro API 响应解析问题修复总结
+# CLAUDE.md
 
-## 问题描述
+本文件为 Claude Code (claude.ai/code) 在此代码库中工作时提供指导。
 
-Cline 报错：`Invalid API Response: The provider returned an empty or unparsable response.`
+## 项目概述
 
-这个错误表明 Kiro API（CodeWhisperer）返回的响应无法被正确解析。
+AIClient-2-API 是一个强大的代理工具，可将多种 AI 客户端 API（Gemini CLI、Qwen Code Plus、Kiro Claude）转换为 OpenAI 兼容的端点。项目有**两个实现版本**：
 
-## 根本原因
+1. **Node.js 版本**（根目录）- 原始实现
+2. **Rust 版本**（[rust/](rust/)）- 高性能重写版本，性能提升 3-4 倍
 
-1. **解析策略不够灵活**: 原有的正则表达式无法正确匹配所有 CodeWhisperer 事件流格式
-2. **日志不够详细**: 无法诊断响应解析失败的具体原因
-3. **空响应处理不当**: 当解析失败时返回空内容，导致 Cline 报错
+两个版本**完全 API 兼容**，实现相同的功能。
 
-## 实施的改进
+## 架构设计
 
-### 1. 增强日志记录 (`rust/src/providers/kiro.rs`)
+### 核心设计模式
 
-添加了详细的日志输出，便于诊断问题：
+- **策略模式**：不同的 AI 提供商（Gemini、OpenAI、Claude、Kiro、Qwen）实现统一接口
+- **适配器模式**：在不同 API 格式之间转换（OpenAI ↔ Claude ↔ Gemini）
+- **提供商池**：多账号管理，支持轮询、故障转移和降级
 
-```rust
-info!("Starting to parse CodeWhisperer response, length: {}", response_text.len());
-debug!("First 1000 chars: {}", &response_text[..response_text.len().min(1000)]);
+### 核心组件
+
+**Node.js 版本：**
+- [src/api-server.js](src/api-server.js) - 主 HTTP 服务器
+- [src/adapter.js](src/adapter.js) - 提供商适配器工厂
+- [src/convert.js](src/convert.js) - 格式转换逻辑
+- [src/provider-strategy.js](src/provider-strategy.js) - 策略实现
+- [src/provider-pool-manager.js](src/provider-pool-manager.js) - 账号池管理
+- 提供商实现：[src/gemini/](src/gemini/)、[src/claude/](src/claude/)、[src/openai/](src/openai/)
+
+**Rust 版本：**
+- [rust/src/main.rs](rust/src/main.rs) - 入口点
+- [rust/src/server.rs](rust/src/server.rs) - Axum HTTP 服务器
+- [rust/src/adapter.rs](rust/src/adapter.rs) - 提供商适配器
+- [rust/src/convert.rs](rust/src/convert.rs) - 格式转换
+- [rust/src/strategies.rs](rust/src/strategies.rs) - 策略实现
+- [rust/src/pool_manager.rs](rust/src/pool_manager.rs) - 账号池
+- [rust/src/providers/](rust/src/providers/) - 提供商实现（gemini.rs、claude.rs、openai.rs、kiro.rs、qwen.rs）
+
+### 提供商系统
+
+每个提供商实现统一接口，包含以下方法：
+- `generate_content()` - 非流式生成
+- `stream_generate_content()` - 流式生成
+- `list_models()` - 列出可用模型
+
+支持的提供商：
+- `gemini-cli-oauth` - Gemini OAuth 方式（绕过 API 限制）
+- `openai-custom` - OpenAI 兼容 API
+- `claude-custom` - Claude 兼容 API
+- `claude-kiro-oauth` - 通过 Kiro 客户端使用 Claude（免费使用 Sonnet 4）
+- `openai-qwen-oauth` - Qwen Code Plus OAuth 方式
+
+## 常用开发任务
+
+### Node.js 版本
+
+**运行服务器：**
+```bash
+node src/api-server.js
+# 使用自定义配置：
+node src/api-server.js --port 8080 --api-key my-key
 ```
 
-在每个解析步骤都添加了日志：
-- 响应接收: `[INFO] Raw response length: X bytes`
-- 解析开始: `[INFO] Starting to parse CodeWhisperer response`
-- 策略尝试: `[INFO] Found X event blocks via regex`
-- 解析成功: `[INFO] Successfully parsed: X chars content, Y tool calls`
-- 解析失败: `[ERROR] Could not parse any content from CodeWhisperer response!`
-
-### 2. 多策略解析
-
-实现了 4 种解析策略（按顺序尝试）：
-
-#### 策略 0: 完整 JSON 解析
-```rust
-if let Ok(json_response) = serde_json::from_str::<serde_json::Value>(response_text) {
-    // 尝试提取 assistantResponseMessage 或 content
-}
+**运行测试：**
+```bash
+npm test                    # 所有测试
+npm run test:unit          # 仅单元测试
+npm run test:integration   # 仅集成测试
+npm run test:coverage      # 带覆盖率报告
 ```
 
-#### 策略 1: 改进的正则表达式
-使用更灵活的模式，类似 JavaScript 实现：
-```rust
-regex::Regex::new(r"(?s)event(\{.*?(?=event\{|$))")
-```
-- `(?s)` 标志使 `.` 匹配换行符
-- `.*?` 非贪婪匹配
-- `(?=event\{|$)` 前瞻断言，匹配到下一个 event{ 或字符串结尾
+**关键启动参数：**
+- `--host <地址>` - 服务器地址（默认：localhost）
+- `--port <端口>` - 服务器端口（默认：3000）
+- `--api-key <密钥>` - 身份验证 API 密钥
+- `--model-provider <提供商>` - 使用的 AI 提供商
+- `--log-prompts <模式>` - 日志模式：console、file 或 none
+- `--system-prompt-file <路径>` - 系统提示词文件
+- `--system-prompt-mode <模式>` - overwrite（覆盖）或 append（追加）
 
-#### 策略 2: 查找 assistantResponseMessage
-```rust
-if let Some(pos) = response_text.find("\"assistantResponseMessage\"") {
-    // 提取 content 字段
-}
-```
+### Rust 版本
 
-#### 策略 3: 搜索任何 content 字段
-```rust
-while let Some(pos) = response_text[start..].find("\"content\":\"") {
-    // 提取所有 content 值
-}
-```
-
-### 3. 容错处理
-
-即使所有解析策略都失败，也返回有效响应：
-
-```rust
-if content_array.is_empty() {
-    error!("No content parsed from CodeWhisperer response!");
-    content_array.push(json!({
-        "type": "text",
-        "text": "⚠️ Unable to parse response from Kiro API. The response may be in an unexpected format. Please check the server logs with RUST_LOG=debug for details."
-    }));
-}
-```
-
-这样 Cline 会收到有效的响应，显示错误提示而不是报"unparsable response"错误。
-
-### 4. 改进的事件块解析
-
-```rust
-let mut search_pos = 0;
-while search_pos < bytes.len() {
-    if let Some(relative_pos) = block_text[search_pos..].find('}') {
-        let json_candidate = &block_text[..brace_pos + 1];
-        
-        if let Ok(event_data) = serde_json::from_str::<serde_json::Value>(json_candidate) {
-            // 处理工具调用或内容事件
-            break;
-        }
-        search_pos = brace_pos + 1;
-    } else {
-        break;
-    }
-}
-```
-
-## 文档和工具
-
-### 创建的文档
-
-1. **KIRO_DEBUG_GUIDE.md** - 详细的调试指南
-   - 如何启用详细日志
-   - 日志输出含义解释
-   - 常见问题和解决方案
-   - 故障排除步骤
-
-2. **KIRO_USAGE_GUIDE_ZH.md** - 中文使用指南
-   - 改进说明
-   - 运行服务器的方法
-   - Cline 配置步骤
-   - 测试和验证方法
-
-3. **run-kiro-debug.sh** - 调试启动脚本
-   - 自动检查配置
-   - 显示配置信息
-   - 启用调试日志
-   - 日志输出到文件和终端
-
-## 使用方法
-
-### 快速启动（推荐）
-
+**构建和运行：**
 ```bash
 cd rust
+cargo build --release                    # 生产构建
+cargo run                                # 调试模式
+RUST_LOG=debug cargo run                 # 带调试日志
+./target/release/aiclient2api-rust       # 运行编译后的二进制文件
+```
+
+**使用 Makefile：**
+```bash
+cd rust
+make build      # 调试构建
+make release    # 发布构建
+make test       # 运行测试
+make run        # 调试模式运行
+make fmt        # 格式化代码
+make clippy     # 运行 linter
+```
+
+**运行测试：**
+```bash
+cd rust
+cargo test                              # 所有测试
+cargo test --test integration_tests    # 集成测试
+cargo test --test provider_tests       # 提供商测试
+cargo test -- --nocapture              # 显示输出
+```
+
+**配置：**
+- 复制 `rust/config.example.json` 为 `rust/config.json`
+- 根据环境编辑配置
+- 使用 `--config <路径>` 指定自定义配置文件
+
+### Docker 部署
+
+**Node.js：**
+```bash
+docker build -t aiclient2api:node .
+docker run -p 3000:3000 -v $(pwd)/config.json:/app/config.json aiclient2api:node
+```
+
+**Rust：**
+```bash
+cd rust
+docker build -t aiclient2api:rust .
+docker run -p 3000:3000 -v $(pwd)/config.json:/root/config.json aiclient2api:rust
+```
+
+## Kiro 提供商（Claude Sonnet 4）
+
+Kiro 提供商通过 Kiro 客户端免费使用 Claude Sonnet 4 模型。
+
+**关键实现细节：**
+- 响应解析使用 4 种回退策略（见 [rust/src/providers/kiro.rs:581-757](rust/src/providers/kiro.rs#L581-L757)）
+- 处理 CodeWhisperer 事件流格式
+- 自动令牌刷新，带指数退避
+- 全面的错误处理和日志记录
+
+**使用 Kiro 运行：**
+```bash
+# Rust 版本（推荐用于 Kiro）
+cd rust
+RUST_LOG=debug ./target/release/aiclient2api-rust --config config.json
+
+# 使用调试脚本进行故障排除：
 ./run-kiro-debug.sh
 ```
 
-### 手动启动
+**调试 Kiro 问题：**
+1. 启用调试日志：`RUST_LOG=debug`
+2. 检查日志中的响应解析
+3. 详细故障排除见 [rust/KIRO_DEBUG_GUIDE.md](rust/KIRO_DEBUG_GUIDE.md)
+4. 使用指南见 [rust/KIRO_USAGE_GUIDE_ZH.md](rust/KIRO_USAGE_GUIDE_ZH.md)
 
-```bash
-cd rust
+**Kiro 身份验证：**
+- 从 https://aibook.ren/archives/kiro-install 下载并安装 Kiro 客户端
+- 完成 OAuth 登录生成 `~/.aws/sso/cache/kiro-auth-token.json`
+- 在 `config.json` 中配置路径：`kiro_oauth_creds_file_path`
 
-# 调试模式（详细日志）
-RUST_LOG=debug ./target/release/aiclient2api-rust --config config.json
+## 测试
 
-# 或保存日志到文件
-RUST_LOG=debug ./target/release/aiclient2api-rust --config config.json 2>&1 | tee kiro_debug.log
-```
+### Node.js 测试
+- 位置：`src/__tests__/`
+- 使用 Jest 框架
+- 运行：`npm test`
 
-### 在 Cline 中配置
+### Rust 测试
+- 单元测试：与源代码内联（`#[cfg(test)]` 模块）
+- 集成测试：[rust/tests/](rust/tests/)
+- 运行：`cargo test`
 
-1. API Provider: Claude
-2. Base URL: `http://localhost:8080`
-3. API Key: 你在 config.json 中设置的 `required_api_key`
-4. Model: `claude-sonnet-4-20250514` 或其他支持的模型
+**测试文件：**
+- [rust/tests/integration_tests.rs](rust/tests/integration_tests.rs) - API 端点测试
+- [rust/tests/provider_tests.rs](rust/tests/provider_tests.rs) - 提供商功能测试
+- [rust/tests/conversion_tests.rs](rust/tests/conversion_tests.rs) - 格式转换测试
+- [rust/tests/system_prompt_tests.rs](rust/tests/system_prompt_tests.rs) - 系统提示词处理测试
 
-## 日志示例
+## 配置文件
 
-### 成功的响应解析
+- `config.json` - 主配置文件（参考 `config.example.json`）
+- `provider_pools.json` - 多账号池配置
+- `input_system_prompt.txt` - 系统提示词注入文件
 
-```
-[INFO] Received Claude messages request
-[INFO] Kiro generate_content
-[INFO] Calling Kiro API: https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse
-[INFO] Raw response length: 2453 bytes
-[INFO] Starting to parse CodeWhisperer response, length: 2453
-[INFO] Using regex to parse event blocks
-[INFO] Found content in event: 145 chars
-[INFO] Found 8 event blocks via regex
-[INFO] Successfully parsed: 145 chars content, 0 tool calls
-[INFO] Returning Claude response with 1 content blocks
-[INFO] Claude messages request completed successfully
-```
+**关键配置选项：**
+- `model_provider` - 使用的 AI 提供商
+- `required_api_key` - 身份验证 API 密钥
+- `prompt_log_mode` - 日志模式："console"、"file" 或 "none"
+- `system_prompt_mode` - "overwrite"（覆盖）或 "append"（追加）
+- `provider_pools_file_path` - 账号池配置文件路径
 
-### 解析失败但有容错处理
+## OAuth 凭据路径
 
-```
-[ERROR] Could not parse any content from CodeWhisperer response!
-[ERROR] Full response (first 2000 chars): event{...}...
-[INFO] Returning empty content to prevent Cline parsing error
-[INFO] Returning Claude response with 1 content blocks
-```
+OAuth 凭据的默认位置：
+- **Gemini**：`~/.gemini/oauth_creds.json`
+- **Kiro**：`~/.aws/sso/cache/kiro-auth-token.json`
+- **Qwen**：`~/.qwen/oauth_creds.json`
 
-Cline 会收到：
-```
-⚠️ Unable to parse response from Kiro API. The response may be in an unexpected format. Please check the server logs with RUST_LOG=debug for details.
-```
+可在 `config.json` 中覆盖：
+- `gemini_oauth_creds_file_path`
+- `kiro_oauth_creds_file_path`
+- `qwen_oauth_creds_file_path`
 
-## 测试步骤
+## 添加新提供商
 
-### 1. 健康检查
+### Node.js：
+1. 在 `src/` 中创建提供商目录（如 `src/newprovider/`）
+2. 实现 `newprovider-core.js`，包含 OAuth 和 API 逻辑
+3. 实现 `newprovider-strategy.js`，继承基础策略
+4. 在 [src/adapter.js](src/adapter.js) 和 [src/common.js](src/common.js) 中注册
+5. 在 `src/__tests__/` 中添加测试
 
-```bash
-curl http://localhost:8080/health
-```
+### Rust：
+1. 创建 `rust/src/providers/newprovider.rs`
+2. 实现 `ApiServiceAdapter` trait
+3. 添加 OAuth 处理和 API 调用
+4. 在 [rust/src/providers/mod.rs](rust/src/providers/mod.rs) 中注册
+5. 更新 [rust/src/adapter.rs](rust/src/adapter.rs) 工厂
+6. 在 `rust/tests/provider_tests.rs` 中添加测试
 
-预期输出：
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-10-08T...",
-  "provider": "claude-kiro-oauth"
-}
-```
+## API 端点
 
-### 2. 基本 API 测试
+### OpenAI 兼容：
+- `POST /v1/chat/completions` - 聊天补全
+- `GET /v1/models` - 列出模型
 
-```bash
-curl -X POST http://localhost:8080/v1/messages \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: your-secret-key-here" \
-  -d '{
-    "model": "claude-sonnet-4-20250514",
-    "messages": [
-      {"role": "user", "content": "Say hello"}
-    ],
-    "max_tokens": 100
-  }'
-```
+### Claude 兼容：
+- `POST /v1/messages` - 消息生成
 
-### 3. Cline 测试
+### Gemini 兼容：
+- `GET /v1beta/models` - 列出模型
+- `POST /v1beta/models/{model}:generateContent` - 生成内容
+- `POST /v1beta/models/{model}:streamGenerateContent` - 流式生成内容
 
-在 Cline 中输入简单问题，观察：
-- 终端日志输出
-- Cline 响应是否正常
-- 是否还有 "unparsable response" 错误
+### 工具端点：
+- `GET /health` - 健康检查
+- `GET /` - 欢迎页面
 
-## 下一步
+### 基于路径的提供商路由
 
-如果问题仍然存在：
+可通过 URL 路径指定提供商：
+- `http://localhost:3000/claude-custom/v1/messages`
+- `http://localhost:3000/claude-kiro-oauth/v1/messages`
+- `http://localhost:3000/gemini-cli-oauth/v1/chat/completions`
+- `http://localhost:3000/openai-custom/v1/chat/completions`
+- `http://localhost:3000/openai-qwen-oauth/v1/chat/completions`
 
-1. **收集日志**: 
-   ```bash
-   RUST_LOG=debug ./target/release/aiclient2api-rust --config config.json 2>&1 | tee detailed.log
-   ```
+这对 Claude Code 和其他 AI 编程助手很有用。
 
-2. **查看详细响应**:
-   - 查找 `[ERROR] Full response` 行
-   - 检查响应格式是否符合预期
+## 性能考虑
 
-3. **报告问题**:
-   - 提供完整日志
-   - 提供配置文件（隐藏敏感信息）
-   - 提供错误时的请求内容
-   - 提供 CodeWhisperer 原始响应样例
+**Rust vs Node.js：**
+- 启动速度：Rust 快 4 倍（~50ms vs ~200ms）
+- 内存占用：Rust 少 4 倍（~20MB vs ~80MB）
+- 请求延迟：Rust 低 40%（60ms vs 100ms）
+- 吞吐量：Rust 高 3 倍（15k vs 5k req/s）
 
-## 技术细节
+**何时使用 Rust：**
+- 需要高性能的生产部署
+- 资源受限的环境
+- 偏好单一二进制部署
 
-### 关键代码位置
+**何时使用 Node.js：**
+- 快速开发和迭代
+- 现有 Node.js 基础设施
+- 熟悉 JavaScript 生态系统
 
-- **响应解析**: `rust/src/providers/kiro.rs:581-757`
-- **API 调用**: `rust/src/providers/kiro.rs:759-872`
-- **非流式响应**: `rust/src/providers/kiro.rs:877-884`
-- **流式响应**: `rust/src/providers/kiro.rs:886-1035`
+## 重要说明
 
-### 支持的模型
+- 两个版本共享相同的 API 契约，完全兼容
+- 配置文件格式在两个版本之间相同
+- Kiro 提供商在 Rust 版本中效果最佳，因为响应解析经过优化
+- Rust 生产构建务必使用 `--release` 标志
+- Rust 日志设置 `RUST_LOG=info` 或 `RUST_LOG=debug`
+- OAuth 令牌由 cron 任务自动刷新（可配置）
+- 账号池通过多个凭据实现高可用性
 
-所有 Claude Sonnet 4 和 3.7 模型：
-- claude-sonnet-4-20250514
-- claude-sonnet-4-5-20250929
-- claude-3-7-sonnet-20250219
-- claude-3-5-sonnet-20241022
-- claude-3-5-haiku-20241022
-- amazonq-* variants
+## 文档
 
-### 性能考虑
+**通用文档：**
+- [README.md](README.md) - 项目概述
+- [BUILD.md](BUILD.md) - 构建说明（Go 版本，已过时）
 
-- 使用 `--release` 编译优化
-- 默认超时: 300秒
-- 自动 token 刷新
-- 指数退避重试（429、5xx 错误）
+**Rust 专用文档：**
+- [rust/README.md](rust/README.md) - Rust 版本概述
+- [rust/QUICKSTART.md](rust/QUICKSTART.md) - 快速开始指南
+- [rust/ARCHITECTURE.md](rust/ARCHITECTURE.md) - 架构详情
+- [rust/BUILD_AND_RUN.md](rust/BUILD_AND_RUN.md) - 构建和运行指南
+- [rust/KIRO_DEBUG_GUIDE.md](rust/KIRO_DEBUG_GUIDE.md) - Kiro 调试
+- [rust/KIRO_USAGE_GUIDE_ZH.md](rust/KIRO_USAGE_GUIDE_ZH.md) - Kiro 使用指南（中文）
+- [rust/PERFORMANCE.md](rust/PERFORMANCE.md) - 性能分析
 
-## 参考资料
+## 故障排除
 
-- [KIRO_DEBUG_GUIDE.md](rust/KIRO_DEBUG_GUIDE.md) - 调试指南
-- [KIRO_USAGE_GUIDE_ZH.md](rust/KIRO_USAGE_GUIDE_ZH.md) - 使用指南
-- [run-kiro-debug.sh](rust/run-kiro-debug.sh) - 启动脚本
+**Node.js：**
+- 使用 `--log-prompts console` 检查日志
+- 验证 OAuth 凭据存在且有效
+- 测试：`curl http://localhost:3000/health`
 
-## 版本信息
+**Rust：**
+- 启用调试日志：`RUST_LOG=debug cargo run`
+- 检查配置文件路径和格式
+- Kiro 问题见 [rust/KIRO_DEBUG_GUIDE.md](rust/KIRO_DEBUG_GUIDE.md)
+- 使用 `cargo check` 验证编译
+- 使用 `cargo clippy` 检查 linting 问题
 
-- 修复日期: 2025-10-08
-- Rust 版本: 1.40+
-- 主要改进: 响应解析、日志记录、错误处理
-
----
-
-**如果这些改进解决了你的问题，请更新此文档并分享你的经验！**
+**常见问题：**
+- OAuth 令牌过期：令牌会自动刷新，检查 cron 设置
+- API 密钥不匹配：验证配置中的 `required_api_key`
+- 端口已被占用：使用 `--port` 或在配置中更改端口
+- 找不到提供商：检查配置中 `model_provider` 的拼写

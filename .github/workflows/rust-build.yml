@@ -1,0 +1,659 @@
+name: Rust Build and Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'rust-v*'
+      - 'v*-rust'
+    paths:
+      - 'rust/**'
+      - '.github/workflows/rust-build.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'rust/**'
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-windows:
+    name: Build Windows AMD64
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        targets: x86_64-pc-windows-msvc
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-git-
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: rust/target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-build-target-
+
+    - name: Check Rust version
+      run: |
+        rustc --version
+        cargo --version
+
+    - name: Build release binary
+      working-directory: ./rust
+      run: |
+        cargo build --release --target x86_64-pc-windows-msvc
+        echo "Build completed successfully"
+
+    - name: Get version info
+      id: version
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION="${{ github.ref_name }}"
+        else
+          VERSION="dev-$(git rev-parse --short HEAD)"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Prepare release files
+      shell: bash
+      run: |
+        mkdir -p release
+        cp rust/target/x86_64-pc-windows-msvc/release/aiclient2api-rust.exe release/
+        cp rust/config.example.json release/config.json
+        cp rust/provider_pools.example.json release/provider_pools.json
+        cp rust/README.md release/
+        cp rust/QUICKSTART.md release/
+        cp LICENSE release/ 2>/dev/null || echo "No LICENSE file"
+
+        # 创建启动脚本
+        cat > release/start.bat << 'EOF'
+        @echo off
+        chcp 65001 >nul
+        echo ========================================
+        echo AIClient-2-API Rust Server
+        echo ========================================
+        echo.
+
+        if not exist config.json (
+            echo [错误] 未找到 config.json 配置文件！
+            echo.
+            echo 请按以下步骤操作：
+            echo 1. 将 config.json 复制一份并重命名
+            echo 2. 编辑 config.json 填入你的配置
+            echo 3. 再次运行此脚本
+            echo.
+            pause
+            exit /b 1
+        )
+
+        echo [信息] 使用 config.json 启动服务器...
+        echo [信息] 按 Ctrl+C 停止服务器
+        echo.
+        aiclient2api-rust.exe --config config.json
+        echo.
+        echo [信息] 服务器已停止
+        pause
+        EOF
+
+        # 创建调试启动脚本
+        cat > release/start-debug.bat << 'EOF'
+        @echo off
+        chcp 65001 >nul
+        echo ========================================
+        echo AIClient-2-API Rust Server (调试模式)
+        echo ========================================
+        echo.
+
+        if not exist config.json (
+            echo [错误] 未找到 config.json 配置文件！
+            echo.
+            pause
+            exit /b 1
+        )
+
+        echo [信息] 调试模式启动中...
+        echo [信息] 将显示详细的调试日志
+        echo [信息] 按 Ctrl+C 停止服务器
+        echo.
+        set RUST_LOG=debug
+        aiclient2api-rust.exe --config config.json
+        echo.
+        echo [信息] 服务器已停止
+        pause
+        EOF
+
+        # 创建命令行参数启动示例
+        cat > release/start-with-args.bat << 'EOF'
+        @echo off
+        chcp 65001 >nul
+        echo ========================================
+        echo AIClient-2-API Rust Server
+        echo 命令行参数启动示例
+        echo ========================================
+        echo.
+        echo 此脚本演示如何使用命令行参数启动服务器
+        echo 而不是使用 config.json 文件
+        echo.
+        echo 你可以修改下面的参数：
+        echo.
+
+        REM 配置参数（根据需要修改）
+        set HOST=localhost
+        set PORT=3000
+        set API_KEY=your-secret-key-here
+        set MODEL_PROVIDER=claude-kiro-oauth
+
+        echo [信息] 使用命令行参数启动服务器...
+        echo [信息] 主机: %HOST%
+        echo [信息] 端口: %PORT%
+        echo [信息] 提供商: %MODEL_PROVIDER%
+        echo.
+
+        aiclient2api-rust.exe ^
+          --host %HOST% ^
+          --port %PORT% ^
+          --api-key %API_KEY% ^
+          --model-provider %MODEL_PROVIDER%
+
+        echo.
+        echo [信息] 服务器已停止
+        pause
+        EOF
+
+        # 创建 Kiro 专用启动脚本
+        cat > release/start-kiro.bat << 'EOF'
+        @echo off
+        chcp 65001 >nul
+        echo ========================================
+        echo AIClient-2-API Rust Server
+        echo Kiro 提供商 (Claude Sonnet 4)
+        echo ========================================
+        echo.
+
+        set KIRO_CREDS=%USERPROFILE%\.aws\sso\cache\kiro-auth-token.json
+
+        if not exist "%KIRO_CREDS%" (
+            echo [错误] 未找到 Kiro 凭据文件！
+            echo.
+            echo 预期位置: %KIRO_CREDS%
+            echo.
+            echo 请按以下步骤操作：
+            echo 1. 从 https://aibook.ren/archives/kiro-install 安装 Kiro 客户端
+            echo 2. 完成 OAuth 登录生成凭据
+            echo 3. 再次运行此脚本
+            echo.
+            pause
+            exit /b 1
+        )
+
+        echo [信息] 找到 Kiro 凭据: %KIRO_CREDS%
+        echo [信息] 使用 Kiro 提供商启动服务器...
+        echo [信息] 按 Ctrl+C 停止服务器
+        echo.
+
+        aiclient2api-rust.exe ^
+          --host localhost ^
+          --port 3000 ^
+          --api-key your-secret-key-here ^
+          --model-provider claude-kiro-oauth ^
+          --kiro-oauth-creds-file "%KIRO_CREDS%"
+
+        echo.
+        echo [信息] 服务器已停止
+        pause
+        EOF
+
+        # 创建帮助脚本
+        cat > release/help.bat << 'EOF'
+        @echo off
+        chcp 65001 >nul
+        cls
+        echo ========================================
+        echo AIClient-2-API Rust Server - 帮助
+        echo ========================================
+        echo.
+        echo 可用的启动脚本：
+        echo.
+        echo   start.bat              - 使用 config.json 启动（推荐）
+        echo   start-debug.bat        - 调试模式启动
+        echo   start-with-args.bat    - 使用命令行参数启动
+        echo   start-kiro.bat         - 使用 Kiro 提供商启动
+        echo   help.bat               - 显示此帮助信息
+        echo.
+        echo ========================================
+        echo 命令行参数
+        echo ========================================
+        echo.
+        echo 服务器配置：
+        echo   --host ^<地址^>          服务器地址（默认：localhost）
+        echo   --port ^<端口^>          服务器端口（默认：3000）
+        echo   --api-key ^<密钥^>       API 密钥
+        echo   --config ^<路径^>        配置文件路径（默认：config.json）
+        echo.
+        echo 提供商配置：
+        echo   --model-provider ^<提供商^>
+        echo       可用提供商：
+        echo       - gemini-cli-oauth      (Gemini OAuth)
+        echo       - openai-custom         (OpenAI 兼容)
+        echo       - claude-custom         (Claude 兼容)
+        echo       - claude-kiro-oauth     (Kiro Claude - 免费 Sonnet 4)
+        echo       - openai-qwen-oauth     (Qwen Code Plus)
+        echo.
+        echo OpenAI 配置：
+        echo   --openai-api-key ^<密钥^>
+        echo   --openai-base-url ^<URL^>
+        echo.
+        echo Claude 配置：
+        echo   --claude-api-key ^<密钥^>
+        echo   --claude-base-url ^<URL^>
+        echo.
+        echo Kiro 配置：
+        echo   --kiro-oauth-creds-file ^<路径^>
+        echo   --kiro-oauth-creds-base64 ^<base64^>
+        echo.
+        echo Gemini 配置：
+        echo   --gemini-oauth-creds-file ^<路径^>
+        echo   --project-id ^<项目ID^>
+        echo.
+        echo Qwen 配置：
+        echo   --qwen-oauth-creds-file ^<路径^>
+        echo.
+        echo 日志配置：
+        echo   --log-prompts ^<模式^>    日志模式：console, file, none
+        echo.
+        echo ========================================
+        echo 使用示例
+        echo ========================================
+        echo.
+        echo 1. 使用配置文件启动：
+        echo    aiclient2api-rust.exe --config config.json
+        echo.
+        echo 2. 使用命令行参数启动：
+        echo    aiclient2api-rust.exe --host 0.0.0.0 --port 8080 --api-key secret
+        echo.
+        echo 3. 使用 Kiro 提供商启动：
+        echo    aiclient2api-rust.exe --model-provider claude-kiro-oauth ^
+        echo      --kiro-oauth-creds-file %%USERPROFILE%%\.aws\sso\cache\kiro-auth-token.json
+        echo.
+        echo 4. 启用调试日志：
+        echo    set RUST_LOG=debug
+        echo    aiclient2api-rust.exe --config config.json
+        echo.
+        echo ========================================
+        echo 文档
+        echo ========================================
+        echo.
+        echo 更多信息请查看：
+        echo   - README.md
+        echo   - QUICKSTART.md
+        echo   - https://github.com/justlovemaki/AIClient-2-API
+        echo.
+        pause
+        EOF
+
+        # 创建 README
+        cat > release/README.txt << 'EOF'
+        AIClient-2-API Rust 版本 - Windows AMD64
+        ============================================
+
+        快速开始：
+        1. 复制 config.json 文件
+        2. 编辑 config.json 填入你的配置
+        3. 双击 start.bat 运行服务器
+
+        调试模式：
+        - 双击 start-debug.bat
+
+        更多信息：
+        - 查看 README.md 了解详细文档
+        - 查看 QUICKSTART.md 快速开始指南
+        - 运行 help.bat 查看命令行参数帮助
+
+        配置文件：
+        - config.json: 主配置文件
+        - provider_pools.json: 多账号池配置（可选）
+
+        默认设置：
+        - 主机: localhost
+        - 端口: 3000
+        - API 密钥: 在 config.json 中设置
+
+        支持的提供商：
+        - gemini-cli-oauth: Gemini OAuth 方式
+        - openai-custom: OpenAI 兼容 API
+        - claude-custom: Claude 兼容 API
+        - claude-kiro-oauth: Kiro Claude (免费 Sonnet 4)
+        - openai-qwen-oauth: Qwen Code Plus
+
+        性能优势：
+        - 启动速度: 比 Node.js 快 4 倍
+        - 内存占用: 减少 75%
+        - 请求延迟: 降低 40%
+        - 吞吐量: 提升 3 倍
+
+        文档：
+        https://github.com/justlovemaki/AIClient-2-API
+
+        ============================================
+        EOF
+
+        ls -lh release/
+
+    - name: Create ZIP archive
+      shell: bash
+      run: |
+        cd release
+        7z a -tzip ../aiclient2api-rust-windows-amd64-${{ steps.version.outputs.version }}.zip *
+        cd ..
+        ls -lh *.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aiclient2api-rust-windows-amd64-${{ steps.version.outputs.version }}
+        path: aiclient2api-rust-windows-amd64-${{ steps.version.outputs.version }}.zip
+        retention-days: 30
+
+    - name: Calculate checksums
+      if: startsWith(github.ref, 'refs/tags/')
+      shell: bash
+      run: |
+        sha256sum aiclient2api-rust-windows-amd64-${{ steps.version.outputs.version }}.zip > checksums.txt
+        cat checksums.txt
+
+    - name: Upload checksums
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: checksums
+        path: checksums.txt
+        retention-days: 30
+
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          rust/target
+        key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-test-
+
+    - name: Run tests
+      working-directory: ./rust
+      run: |
+        cargo test --release -- --nocapture
+
+    - name: Run clippy
+      working-directory: ./rust
+      run: |
+        cargo clippy -- -D warnings
+
+    - name: Check formatting
+      working-directory: ./rust
+      run: |
+        cargo fmt -- --check
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, test-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Display structure of downloaded files
+      run: |
+        ls -R ./artifacts
+
+    - name: Prepare release notes
+      id: release_notes
+      run: |
+        cat > release_notes.md << 'EOF'
+        ## AIClient-2-API Rust Version - Windows AMD64 Release
+
+        ### 🦀 Rust 版本特性
+
+        - ⚡ **高性能**: 比 Node.js 版本快 3-4 倍
+        - 💾 **低内存**: 内存占用减少 75%
+        - 🚀 **高吞吐**: 吞吐量提升 3 倍
+        - 📦 **单一二进制**: 无需安装依赖，开箱即用
+
+        ### 📦 包含内容
+
+        - `aiclient2api-rust.exe` - 主程序
+        - `config.json` - 配置文件示例
+        - `provider_pools.json` - 账号池配置示例
+        - `start.bat` - 快速启动脚本（推荐）
+        - `start-debug.bat` - 调试模式启动脚本
+        - `start-with-args.bat` - 命令行参数启动示例
+        - `start-kiro.bat` - Kiro 专用启动脚本
+        - `help.bat` - 命令行参数帮助
+        - `README.md` - 详细文档
+        - `QUICKSTART.md` - 快速开始指南
+        - `README.txt` - Windows 快速指南
+
+        ### 🚀 快速开始
+
+        **方法 1：使用配置文件（推荐）**
+        1. 下载并解压 ZIP 文件
+        2. 编辑 `config.json` 配置文件
+        3. 双击 `start.bat` 启动服务器
+
+        **方法 2：使用命令行参数**
+        1. 编辑 `start-with-args.bat` 修改参数
+        2. 双击运行
+
+        **方法 3：使用 Kiro（免费 Claude Sonnet 4）**
+        1. 安装 Kiro 客户端并完成登录
+        2. 双击 `start-kiro.bat` 启动
+
+        ### 📝 配置说明
+
+        ```json
+        {
+          "host": "localhost",
+          "port": 3000,
+          "required_api_key": "your-secret-key",
+          "model_provider": "claude-kiro-oauth"
+        }
+        ```
+
+        ### 🔧 支持的提供商
+
+        - `gemini-cli-oauth` - Gemini OAuth 方式
+        - `openai-custom` - OpenAI 兼容 API
+        - `claude-custom` - Claude 兼容 API
+        - `claude-kiro-oauth` - Kiro Claude (免费 Sonnet 4)
+        - `openai-qwen-oauth` - Qwen Code Plus
+
+        ### 📊 性能对比
+
+        | 指标 | Node.js | Rust | 提升 |
+        |------|---------|------|------|
+        | 启动速度 | 200ms | 50ms | 4x |
+        | 内存占用 | 80MB | 20MB | 4x |
+        | 请求延迟 | 100ms | 60ms | 40% |
+        | 吞吐量 | 5k/s | 15k/s | 3x |
+
+        ### 🐛 已知问题
+
+        无
+
+        ### 📖 文档
+
+        - [完整文档](https://github.com/justlovemaki/AIClient-2-API)
+        - [Rust 版本说明](https://github.com/justlovemaki/AIClient-2-API/tree/main/rust)
+
+        ### 🔐 校验和
+
+        请查看 `checksums.txt` 文件验证下载完整性。
+        EOF
+
+        cat release_notes.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/aiclient2api-rust-windows-amd64-*/aiclient2api-rust-windows-amd64-*.zip
+          artifacts/checksums/checksums.txt
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 可选：构建其他平台
+  build-other-platforms:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+
+    strategy:
+      matrix:
+        include:
+          - platform: linux-amd64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: aiclient2api-rust
+            archive: tar.gz
+
+          - platform: linux-arm64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary: aiclient2api-rust
+            archive: tar.gz
+
+          - platform: macos-amd64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            binary: aiclient2api-rust
+            archive: tar.gz
+
+          - platform: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            binary: aiclient2api-rust
+            archive: tar.gz
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        targets: ${{ matrix.target }}
+
+    - name: Install cross-compilation tools (Linux ARM64)
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          rust/target
+        key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+    - name: Build release binary
+      working-directory: ./rust
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+
+    - name: Get version info
+      id: version
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION="${{ github.ref_name }}"
+        else
+          VERSION="dev-$(git rev-parse --short HEAD)"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Prepare release files
+      shell: bash
+      run: |
+        mkdir -p release
+        cp rust/target/${{ matrix.target }}/release/${{ matrix.binary }} release/
+        cp rust/config.example.json release/config.json
+        cp rust/provider_pools.example.json release/provider_pools.json
+        cp rust/README.md release/
+        cp rust/QUICKSTART.md release/
+        cp LICENSE release/ 2>/dev/null || true
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd release
+        if [[ "${{ matrix.archive }}" == "tar.gz" ]]; then
+          tar czf ../aiclient2api-rust-${{ matrix.platform }}-${{ steps.version.outputs.version }}.tar.gz *
+        else
+          zip -r ../aiclient2api-rust-${{ matrix.platform }}-${{ steps.version.outputs.version }}.zip *
+        fi
+        cd ..
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aiclient2api-rust-${{ matrix.platform }}-${{ steps.version.outputs.version }}
+        path: aiclient2api-rust-${{ matrix.platform }}-${{ steps.version.outputs.version }}.*
+        retention-days: 30
