@@ -82,6 +82,9 @@ tokio-cron-scheduler = "0.13"
 # URL parsing
 url = "2.5"
 
+# LRU Cache for performance optimization
+lru = "0.12"
+
 [dev-dependencies]
 # Testing
 httpmock = "0.7"
