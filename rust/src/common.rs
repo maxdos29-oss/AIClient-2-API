@@ -2,7 +2,6 @@
  * Common types and utilities
  */
 
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -45,7 +44,7 @@ impl ModelProvider {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "gemini-cli-oauth" => Some(Self::GeminiCliOAuth),
             "openai-custom" => Some(Self::OpenAICustom),

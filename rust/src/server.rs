@@ -37,7 +37,7 @@ pub async fn start_server(config: Config) -> Result<()> {
     let addr = format!("{}:{}", host, port);
 
     // Create adapter
-    let provider = ModelProvider::from_str(&config.model_provider)
+    let provider = ModelProvider::parse(&config.model_provider)
         .ok_or_else(|| anyhow::anyhow!("Invalid model provider: {}", config.model_provider))?;
     let adapter = create_adapter(provider, &config).await?;
 

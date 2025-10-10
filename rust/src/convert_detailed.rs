@@ -4,14 +4,16 @@
  * Complete conversion logic between OpenAI, Claude, and Gemini formats.
  */
 
-use crate::common::*;
 use anyhow::Result;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
 const DEFAULT_MAX_TOKENS: u32 = 8192;
+#[allow(dead_code)]
 const DEFAULT_GEMINI_MAX_TOKENS: u32 = 65536;
+#[allow(dead_code)]
 const DEFAULT_TEMPERATURE: f32 = 1.0;
+#[allow(dead_code)]
 const DEFAULT_TOP_P: f32 = 0.9;
 
 // ============================================================================
